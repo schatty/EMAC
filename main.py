@@ -49,6 +49,7 @@ if __name__ == "__main__":
         parser.add_argument("--save_model", action="store_true")        # Save model and optimizer parameters
         parser.add_argument("--save_buffer", default=0)
         parser.add_argument("--load_model", default="")                 # Model load file name, "" doesn't load, "default" uses file_name
+        parser.add_argument("--device", default="cpu")
         args = parser.parse_args()
 
         file_name = f"{args.policy}_{args.env}_{args.seed}"
