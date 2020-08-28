@@ -49,7 +49,7 @@ if __name__ == "__main__":
         parser.add_argument("--save_model", action="store_true")        # Save model and optimizer parameters
         parser.add_argument("--save_buffer", default=0)
         parser.add_argument("--load_model", default="")                 # Model load file name, "" doesn't load, "default" uses file_name
-        parser.add_argument("--device", default="cpu")
+        parser.add_argument("--device", default="cuda")
         args = parser.parse_args()
 
         file_name = f"{args.policy}_{args.env}_{args.seed}"
@@ -83,6 +83,7 @@ if __name__ == "__main__":
             "max_action": max_action,
             "discount": args.discount,
             "tau": args.tau,
+            "device": args.device
         }
 
         # Initialize policy
@@ -99,7 +100,7 @@ if __name__ == "__main__":
             policy_file = file_name if args.load_model == "default" else args.load_model
             policy.load(f"./models/{policy_file}")
 
-        replay_buffer = utils.ReplayBuffer(state_dim, action_dim)
+        replay_buffer = utils.ReplayBuffer(state_dim, action_dim, device=args.device)
 	
         # Evaluate untrained policy
         evaluations = [eval_policy(policy, args.env, args.seed)]
