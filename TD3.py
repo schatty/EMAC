@@ -95,6 +95,10 @@ class TD3(object):
         self.total_it = 0
         self.device = device
 
+        # Error of critic
+        self.q_errors = []
+        self.train_info = {'q1': [], 'q_target': [], 'q_loss': []}
+
 
     def select_action(self, state):
         state = torch.FloatTensor(state.reshape(1, -1)).to(self.device)
@@ -125,8 +129,14 @@ class TD3(object):
         # Get current Q estimates
         current_Q1, current_Q2 = self.critic(state, action)
 
+        q_err = (target_Q - current_Q1.detach()).cpu().numpy().flatten()
+        self.q_errors.append(q_err)
+
         # Compute critic loss
         critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
+        self.train_info['q_loss'].append(critic_loss.detach().item())
+        self.train_info['q1'].append(current_Q1.mean().detach().item())
+        self.train_info['q_target'].append(target_Q.mean().detach().item())
 
         # Optimize the critic
         self.critic_optimizer.zero_grad()

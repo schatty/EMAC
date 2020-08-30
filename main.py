@@ -3,6 +3,7 @@ import torch
 import gym
 import argparse
 import os
+import pickle
 
 import utils
 import TD3
@@ -155,3 +156,9 @@ if __name__ == "__main__":
             if t % 100000 == 0 and args.save_buffer:
                 print(f"Saving buffer at {t} timestep...")
                 replay_buffer.save(f"./buffers/{file_name}")
+
+        print("Saving Q-errors...")
+        with open(f"buffers/{file_name}_q_error.pkl", "wb") as f:
+            pickle.dump(policy.q_errors, f)
+        with open(f"results/{file_name}_info.pkl", "wb") as f:
+            pickle.dump(policy.train_info, f)
