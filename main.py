@@ -50,6 +50,7 @@ if __name__ == "__main__":
         parser.add_argument("--save_buffer", default=0)
         parser.add_argument("--load_model", default="")                 # Model load file name, "" doesn't load, "default" uses file_name
         parser.add_argument("--device", default="cuda")
+        parser.add_argument("--save_model_every", type=int, default=1000000)      # Save model every timesteps
         args = parser.parse_args()
 
         file_name = f"{args.policy}_{args.env}_{args.seed}"
@@ -150,7 +151,11 @@ if __name__ == "__main__":
             if (t + 1) % args.eval_freq == 0:
                 evaluations.append(eval_policy(policy, args.env, args.seed))
                 np.save(f"./results/{file_name}", evaluations)
-                if args.save_model: policy.save(f"./models/{file_name}")
+
+            # Save model
+            if args.save_model and t % args.save_model_every == 0:
+                print("Saving model...")
+                policy.save(f"./models/{file_name}_step_{t}")
 
             if t % 100000 == 0 and args.save_buffer:
                 print(f"Saving buffer at {t} timestep...")
