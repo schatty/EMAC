@@ -1,3 +1,5 @@
+import time
+import pickle
 import numpy as np
 import torch
 import gym
@@ -31,7 +33,47 @@ def eval_policy(policy, env_name, seed, eval_episodes=10):
     return avg_reward
 
 
-if __name__ == "__main__":	
+def estimate_true_q(policy, env_name, buffer, eval_episodes=5000):
+    t1 = time.time()
+    eval_env = gym.make(env_name)
+
+    qs = []
+    for _ in range(eval_episodes):
+        eval_env.reset()
+
+        ind = np.random.choice(buffer.size)
+        state = buffer.state[ind]
+        reward = buffer.reward[ind]
+
+        shift = 0
+        if env_name == "Walker2d-v3":
+            shift = 1
+        qpos = state[:eval_env.model.nq-shift]
+        qvel = state[eval_env.model.nq-shift:]
+        if env_name == "Walker2d-v3":
+            qpos = np.concatenate([[0], qpos])
+
+        eval_env.set_state(qpos, qvel)
+
+        q = reward
+        s_i = 1
+        while True:
+            action = policy.select_action(np.array(state))
+            state, r, d, _ = eval_env.step(action)
+            q += r * args.discount ** s_i
+
+            s_i += 1
+
+            if d:
+                break
+        qs.append(q)
+
+    print("Estimation took: ", time.time() - t1)
+
+    return np.mean(qs)
+
+
+if __name__ == "__main__":
         parser = argparse.ArgumentParser()
         parser.add_argument("--policy", default="TD3")                  # Policy name (TD3, DDPG or OurDDPG)
         parser.add_argument("--env", default="HalfCheetah-v2")          # OpenAI gym environment name
@@ -51,6 +93,7 @@ if __name__ == "__main__":
         parser.add_argument("--load_model", default="")                 # Model load file name, "" doesn't load, "default" uses file_name
         parser.add_argument("--device", default="cuda")
         parser.add_argument("--save_model_every", type=int, default=1000000)      # Save model every timesteps
+        parser.add_argument("--monitor_q", action="store_true")
         args = parser.parse_args()
 
         file_name = f"{args.policy}_{args.env}_{args.seed}"
@@ -63,9 +106,10 @@ if __name__ == "__main__":
 
         if args.save_model and not os.path.exists("./models"):
             os.makedirs("./models")
-
         if not os.path.exists("./buffers"):
             os.makedirs("./buffers")
+        if not os.path.exists("./meta"):
+            os.makedirs("./meta")
 
         env = gym.make(args.env)
 
@@ -102,7 +146,7 @@ if __name__ == "__main__":
             policy.load(f"./models/{policy_file}")
 
         replay_buffer = utils.ReplayBuffer(state_dim, action_dim, device=args.device)
-	
+
         # Evaluate untrained policy
         evaluations = [eval_policy(policy, args.env, args.seed)]
 
@@ -110,9 +154,9 @@ if __name__ == "__main__":
         episode_reward = 0
         episode_timesteps = 0
         episode_num = 0
+        q_estim, q_critic = [], []
 
         for t in range(int(args.max_timesteps)):
-		
             episode_timesteps += 1
 
             # Select action randomly or according to policy
@@ -120,8 +164,8 @@ if __name__ == "__main__":
                 action = env.action_space.sample()
             else:
                 action = (
-	            policy.select_action(np.array(state))
-				+ np.random.normal(0, max_action * args.expl_noise, size=action_dim)
+                        policy.select_action(np.array(state))
+                        + np.random.normal(0, max_action * args.expl_noise, size=action_dim)
                 ).clip(-max_action, max_action)
 
             # Perform action
@@ -160,3 +204,13 @@ if __name__ == "__main__":
             if t % 100000 == 0 and args.save_buffer:
                 print(f"Saving buffer at {t} timestep...")
                 replay_buffer.save(f"./buffers/{file_name}")
+
+            if t % 100 == 0:
+                q_critic.append(policy.q)
+            if t % 50000 == 0 and args.monitor_q:
+                q_estim.append(estimate_true_q(policy, args.env, replay_buffer))
+
+        print("Saving Q estimates...")
+        with open(f"./meta/q_vals_{file_name}.pkl", "wb") as f:
+            data = {'q_critic': q_critic, 'q_estimate': q_estim}
+            pickle.dump(data, f)
