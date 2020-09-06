@@ -1,3 +1,4 @@
+from datetime import datetime
 import time
 import pickle
 import numpy as np
@@ -90,22 +91,25 @@ if __name__ == "__main__":
         parser.add_argument("--device", default="cuda")
         parser.add_argument("--save_model_every", type=int, default=1000000)      # Save model every timesteps
         parser.add_argument("--monitor_q", action="store_true")
+        parser.add_argument("--exp_name", default="test")
         args = parser.parse_args()
 
-        file_name = f"{args.policy}_{args.env}_{args.seed}"
         print("---------------------------------------")
         print(f"Policy: {args.policy}, Env: {args.env}, Seed: {args.seed}")
         print("---------------------------------------")
 
-        if not os.path.exists("./results"):
-            os.makedirs("./results")
+        dt = datetime.now()
+        exp_dir = dt.strftime("%b_%d_%Y")
+        exp_dir = f"./results/{exp_dir}_{args.policy}_{args.env}_{args.seed}_{args.exp_name}"
+        if os.path.exists(exp_dir):
+            raise Exception(f"Directory {exp_dir} already exists.")
+        print(f"Saving dir: {exp_dir}")
 
-        if args.save_model and not os.path.exists("./models"):
-            os.makedirs("./models")
-        if not os.path.exists("./buffers"):
-            os.makedirs("./buffers")
-        if not os.path.exists("./meta"):
-            os.makedirs("./meta")
+        folders = ["models", "train", "buffers", "meta"]
+        for fold in folders:
+            fn = f"{exp_dir}/{fold}"
+            if not os.path.exists(fn):
+                os.makedirs(fn)
 
         env = gym.make(args.env)
 
@@ -138,8 +142,7 @@ if __name__ == "__main__":
             policy = DDPG.DDPG(**kwargs)
 
         if args.load_model != "":
-            policy_file = file_name if args.load_model == "default" else args.load_model
-            policy.load(f"./models/{policy_file}")
+            policy.load(f"{exp_dir}/models/{args.load_model}")
 
         replay_buffer = utils.ReplayBuffer(state_dim, action_dim, device=args.device)
 
@@ -152,7 +155,7 @@ if __name__ == "__main__":
         episode_num = 0
         q_estim, q_critic = [], []
 
-        for t in range(int(args.max_timesteps)):
+        for t in range(int(args.max_timesteps)+1):
             episode_timesteps += 1
 
             # Select action randomly or according to policy
@@ -190,16 +193,16 @@ if __name__ == "__main__":
             # Evaluate episode
             if (t + 1) % args.eval_freq == 0:
                 evaluations.append(eval_policy(policy, args.env, args.seed))
-                np.save(f"./results/{file_name}", evaluations)
+                np.save(f"{exp_dir}/train/reward.npy", evaluations)
 
             # Save model
             if args.save_model and t % args.save_model_every == 0:
                 print("Saving model...")
-                policy.save(f"./models/{file_name}_step_{t}")
+                policy.save(f"{exp_dir}/models/model_step_{t}")
 
             if t % 100000 == 0 and args.save_buffer:
                 print(f"Saving buffer at {t} timestep...")
-                replay_buffer.save(f"./buffers/{file_name}")
+                replay_buffer.save(f"{exp_dir}/buffers/replay_buffer")
 
             if t % 100 == 0:
                 q_critic.append(policy.q)
@@ -207,6 +210,6 @@ if __name__ == "__main__":
                 q_estim.append(estimate_true_q(policy, args.env, replay_buffer))
 
         print("Saving Q estimates...")
-        with open(f"./meta/q_vals_{file_name}.pkl", "wb") as f:
+        with open(f"{exp_dir}/meta/q_vals.pkl", "wb") as f:
             data = {'q_critic': q_critic, 'q_estimate': q_estim}
             pickle.dump(data, f)
