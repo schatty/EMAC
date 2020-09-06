@@ -33,7 +33,7 @@ def eval_policy(policy, env_name, seed, eval_episodes=10):
     return avg_reward
 
 
-def estimate_true_q(policy, env_name, buffer, eval_episodes=5000):
+def estimate_true_q(policy, env_name, buffer, eval_episodes=1000):
     t1 = time.time()
     eval_env = gym.make(env_name)
 
@@ -42,16 +42,12 @@ def estimate_true_q(policy, env_name, buffer, eval_episodes=5000):
         eval_env.reset()
 
         ind = np.random.choice(buffer.size)
-        state = buffer.state[ind]
+        state = buffer.next_state[ind]
         reward = buffer.reward[ind]
 
-        shift = 0
-        if env_name == "Walker2d-v3":
-            shift = 1
-        qpos = state[:eval_env.model.nq-shift]
-        qvel = state[eval_env.model.nq-shift:]
-        if env_name == "Walker2d-v3":
-            qpos = np.concatenate([[0], qpos])
+        qpos = state[:eval_env.model.nq-1]
+        qvel = state[eval_env.model.nq-1:]
+        qpos = np.concatenate([[0], qpos])
 
         eval_env.set_state(qpos, qvel)
 
