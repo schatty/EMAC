@@ -1,47 +1,15 @@
-
 import copy
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.tensorboard import SummaryWriter
 
-
-# Re-tuned version of Deep Deterministic Policy Gradients (DDPG)
-# Paper: https://arxiv.org/abs/1509.02971
-
-
-class Actor(nn.Module):
-    def __init__(self, state_dim, action_dim, max_action):
-        super(Actor, self).__init__()
-
-        self.l1 = nn.Linear(state_dim, 400)
-        self.l2 = nn.Linear(400, 300)
-        self.l3 = nn.Linear(300, action_dim)
-
-        self.max_action = max_action
-
-    def forward(self, state):
-        a = F.relu(self.l1(state))
-        a = F.relu(self.l2(a))
-        return self.max_action * torch.tanh(self.l3(a))
-
-
-class Critic(nn.Module):
-    def __init__(self, state_dim, action_dim):
-        super(Critic, self).__init__()
-
-        self.l1 = nn.Linear(state_dim + action_dim, 400)
-        self.l2 = nn.Linear(400, 300)
-        self.l3 = nn.Linear(300, 1)
-
-    def forward(self, state, action):
-        q = F.relu(self.l1(torch.cat([state, action], 1)))
-        q = F.relu(self.l2(q))
-        return self.l3(q)
+from .nn import Actor, Critic
 
 
 class DDPG(object):
-    def __init__(self, state_dim, action_dim, max_action, discount=0.99, tau=0.005, device="cuda"):
+    def __init__(self, state_dim, action_dim, max_action, discount=0.99,
+            tau=0.005, device="cuda", log_dir="tb"):
         self.actor = Actor(state_dim, action_dim, max_action).to(device)
         self.actor_target = copy.deepcopy(self.actor)
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters())
@@ -55,11 +23,12 @@ class DDPG(object):
         self.device = device
         self.q = 0
 
+        self.step = 0
+        self.tb_logger = SummaryWriter(log_dir)
 
     def select_action(self, state):
         state = torch.FloatTensor(state.reshape(1, -1)).to(self.device)
         return self.actor(state).cpu().data.numpy().flatten()
-
 
     def train(self, replay_buffer, batch_size=100):
         # Sample replay buffer 
@@ -71,7 +40,6 @@ class DDPG(object):
 
         # Get current Q estimate
         current_Q = self.critic(state, action)
-        self.q = np.mean(current_Q.detach().cpu().numpy())
 
         # Compute critic loss
         critic_loss = F.mse_loss(current_Q, target_Q)
@@ -96,6 +64,15 @@ class DDPG(object):
         for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
                 target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
 
+        # Logging
+        if self.step % 250 == 0:
+            q = np.mean(current_Q.detach().cpu().numpy())
+            self.tb_logger.add_scalar("algo/q", q, self.step)
+            q_loss = critic_loss.detach().cpu().item()
+            self.tb_logger.add_scalar("algo/q_loss", q_loss, self.step)
+            pi_loss = actor_loss.detach().cpu().item()
+            self.tb_logger.add_scalar("algo/pi_loss", pi_loss, self.step)
+        self.step += 1
 
     def save(self, filename):
         torch.save(self.critic.state_dict(), filename + "_critic")
@@ -103,7 +80,6 @@ class DDPG(object):
         
         torch.save(self.actor.state_dict(), filename + "_actor")
         torch.save(self.actor_optimizer.state_dict(), filename + "_actor_optimizer")
-
 
     def load(self, filename):
         self.critic.load_state_dict(torch.load(filename + "_critic"))

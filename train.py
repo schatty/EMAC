@@ -5,11 +5,14 @@ import numpy as np
 import torch
 import gym
 import argparse
+import shutil
 import os
 
-import utils
-import TD3
-import DDPG
+from torch.utils.tensorboard import SummaryWriter
+
+from models.utils import ReplayBuffer
+from models.TD3 import TD3
+from models.DDPG import DDPG
 
 
 # Runs policy for X episodes and returns average reward
@@ -90,7 +93,6 @@ if __name__ == "__main__":
         parser.add_argument("--load_model", default="")                 # Model load file name, "" doesn't load, "default" uses file_name
         parser.add_argument("--device", default="cuda")
         parser.add_argument("--save_model_every", type=int, default=1000000)      # Save model every timesteps
-        parser.add_argument("--monitor_q", action="store_true")
         parser.add_argument("--exp_name", default="test")
         args = parser.parse_args()
 
@@ -102,16 +104,23 @@ if __name__ == "__main__":
         exp_dir = dt.strftime("%b_%d_%Y")
         exp_dir = f"./results/{exp_dir}_{args.policy}_{args.env}_{args.seed}_{args.exp_name}"
         if os.path.exists(exp_dir):
-            raise Exception(f"Directory {exp_dir} already exists.")
+            ans = input(f"Directory {exp_dir} already exists. Overwrite? [Y/n] ")
+            if ans == "Y":
+                shutil.rmtree(exp_dir)
+            else:
+                raise Exception("Trying to rewrite existing experiment. Exiting...")
         print(f"Saving dir: {exp_dir}")
 
-        folders = ["models", "train", "buffers", "meta"]
+        folders = ["models", "buffers", "tb"]
         for fold in folders:
             fn = f"{exp_dir}/{fold}"
             if not os.path.exists(fn):
                 os.makedirs(fn)
 
         env = gym.make(args.env)
+
+        # Logger
+        tb_logger = SummaryWriter(f"{exp_dir}/tb")
 
         # Set seeds
         env.seed(args.seed)
@@ -128,7 +137,8 @@ if __name__ == "__main__":
             "max_action": max_action,
             "discount": args.discount,
             "tau": args.tau,
-            "device": args.device
+            "device": args.device,
+            "log_dir": f"{exp_dir}/tb"
         }
 
         # Initialize policy
@@ -137,14 +147,14 @@ if __name__ == "__main__":
             kwargs["policy_noise"] = args.policy_noise * max_action
             kwargs["noise_clip"] = args.noise_clip * max_action
             kwargs["policy_freq"] = args.policy_freq
-            policy = TD3.TD3(**kwargs)
+            policy = TD3(**kwargs)
         elif args.policy == "DDPG":
-            policy = DDPG.DDPG(**kwargs)
+            policy = DDPG(**kwargs)
 
         if args.load_model != "":
             policy.load(f"{exp_dir}/models/{args.load_model}")
 
-        replay_buffer = utils.ReplayBuffer(state_dim, action_dim, device=args.device)
+        replay_buffer = ReplayBuffer(state_dim, action_dim, device=args.device)
 
         # Evaluate untrained policy
         evaluations = [eval_policy(policy, args.env, args.seed)]
@@ -188,12 +198,12 @@ if __name__ == "__main__":
                 state, done = env.reset(), False
                 episode_reward = 0
                 episode_timesteps = 0
-                episode_num += 1 
+                episode_num += 1
 
             # Evaluate episode
             if (t + 1) % args.eval_freq == 0:
-                evaluations.append(eval_policy(policy, args.env, args.seed))
-                np.save(f"{exp_dir}/train/reward.npy", evaluations)
+                ep_reward = eval_policy(policy, args.env, args.seed)
+                tb_logger.add_scalar("agent/eval_reward", ep_reward, t)
 
             # Save model
             if args.save_model and t % args.save_model_every == 0:
@@ -203,13 +213,3 @@ if __name__ == "__main__":
             if t % 100000 == 0 and args.save_buffer:
                 print(f"Saving buffer at {t} timestep...")
                 replay_buffer.save(f"{exp_dir}/buffers/replay_buffer")
-
-            if t % 100 == 0:
-                q_critic.append(policy.q)
-            if t % 50000 == 0 and args.monitor_q:
-                q_estim.append(estimate_true_q(policy, args.env, replay_buffer))
-
-        print("Saving Q estimates...")
-        with open(f"{exp_dir}/meta/q_vals.pkl", "wb") as f:
-            data = {'q_critic': q_critic, 'q_estimate': q_estim}
-            pickle.dump(data, f)
