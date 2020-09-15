@@ -4,20 +4,12 @@ import shutil
 import os
 
 from models.trainer import Trainer
-from models.ep_trainer import EpisodicTrainer
-
-
-def load_trainer(config):
-    if config["policy"] in ["DDPG", "TD3"]:
-        return Trainer(config)
-    elif config["policy"] in ["EpisoticDDPG"]:
-        return EpisodicTrainer(config)
 
 
 if __name__ == "__main__":
         parser = argparse.ArgumentParser()
         parser.add_argument("--policy", default="TD3")                  # Policy name (TD3, DDPG or OurDDPG)
-        parser.add_argument("--env", default="HalfCheetah-v2")          # OpenAI gym environment name
+        parser.add_argument("--env", default="Walker2d-v3")          # OpenAI gym environment name
         parser.add_argument("--seed", default=0, type=int)              # Sets Gym, PyTorch and Numpy seeds
         parser.add_argument("--start_timesteps", default=25e3, type=int)# Time steps initial random policy is used
         parser.add_argument("--eval_freq", default=5e3, type=int)       # How often (time steps) we evaluate
@@ -61,6 +53,6 @@ if __name__ == "__main__":
         config = vars(args)
         print("Config: ", config)
 
-        trainer = load_trainer(config)
+        trainer = Trainer(config)
         trainer.train(exp_dir)
 
