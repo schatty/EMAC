@@ -1,3 +1,4 @@
+import time
 import copy
 import numpy as np
 import torch
@@ -38,6 +39,20 @@ class DDPG(object):
         target_Q = self.critic_target(next_state, self.actor_target(next_state))
         target_Q = reward + (not_done * self.discount * target_Q).detach()
 
+        time1 = time.time()
+        mem_qs = []
+        for s, a in zip(state, action):
+            mem_q = replay_buffer.mem.retrieve(s.cpu().numpy(), a.cpu().numpy())
+            mem_qs.append(mem_q)
+        mem_q = torch.from_numpy(np.asarray(mem_qs)).float().to(self.device)
+
+        cur_mem = torch.cat([target_Q, mem_q], dim=1)
+        target_Q, min_inds = torch.min(cur_mem, dim=1)
+        target_Q.unsqueeze_(1)  # [batch, 1]
+
+        mem_contrib = torch.sum(min_inds).item() / batch_size
+        mem_time = time.time() - time1
+
         # Get current Q estimate
         current_Q = self.critic(state, action)
 
@@ -72,6 +87,8 @@ class DDPG(object):
             self.tb_logger.add_scalar("algo/q_loss", q_loss, self.step)
             pi_loss = actor_loss.detach().cpu().item()
             self.tb_logger.add_scalar("algo/pi_loss", pi_loss, self.step)
+            self.tb_logger.add_scalar("algo/mem_retrieve_time", mem_time, self.step)
+            self.tb_logger.add_scalar("algo/mem_contribution", mem_contrib, self.step)
         self.step += 1
 
     def save(self, filename):
