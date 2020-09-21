@@ -9,6 +9,7 @@ from models.TD3 import TD3
 from models.DDPG import DDPG
 
 from .utils import eval_policy
+from .mem import MemBuffer
 
 
 class Trainer:
@@ -24,6 +25,7 @@ class Trainer:
         eval_freq = self.c["eval_freq"]
         save_model = self.c["save_model"]
         save_buffer = self.c["save_buffer"]
+        save_memory = self.c["save_memory"]
         save_model_every = self.c["save_model_every"]
         device = self.c["device"]
         env_name = self.c["env"]
@@ -67,13 +69,14 @@ class Trainer:
         if load_model != "":
             policy.load(f"{exp_dir}/models/{load_model}")
 
-        replay_buffer = EpisodicReplayBuffer(state_dim, action_dim, device=device)
+        mem = MemBuffer(state_dim, action_dim, 500000)
+        replay_buffer = EpisodicReplayBuffer(state_dim, action_dim, mem, device=device)
 
         # Evaluate untrained policy
         ep_reward = eval_policy(policy, env_name, seed)
         tb_logger.add_scalar("agent/eval_reward", ep_reward, 0)
 
-        state, done = env.reset(), False
+        state = env.reset()
         episode_reward = 0
         episode_timesteps = 0
         episode_num = 0
@@ -91,11 +94,12 @@ class Trainer:
                 ).clip(-max_action, max_action)
 
             # Perform action
-            next_state, reward, done, _ = env.step(action)
-            done_ep = float(done) if episode_timesteps < env._max_episode_steps else 1
+            next_state, reward, done_env, _ = env.step(action)
+            done_limit = episode_timesteps > env._max_episode_steps
 
             # Store data in replay buffer
-            replay_buffer.add(state, action, next_state, reward, done_ep)
+            done_ep = float(done_env) if episode_timesteps < env._max_episode_steps else 1
+            replay_buffer.add(state, action, next_state, reward, done_env, done_limit, done_ep)
 
             state = next_state
             episode_reward += reward
@@ -104,11 +108,11 @@ class Trainer:
             if t >= start_timesteps:
                 policy.train(replay_buffer, batch_size)
 
-            if done_ep:
+            if done_env or done_limit:
                 # +1 to account for 0 indexing. +0 on ep_timesteps since it will increment +1 even if done=True
                 print(f"Total T: {t+1} Episode Num: {episode_num+1} Episode T: {episode_timesteps} Reward: {episode_reward:.3f}")
                 # Reset environment
-                state, done = env.reset(), False
+                state = env.reset()
                 episode_reward = 0
                 episode_timesteps = 0
                 episode_num += 1
@@ -127,6 +131,10 @@ class Trainer:
                 print("Saving model...")
                 policy.save(f"{exp_dir}/models/model_step_{t}")
 
-            if t % 100000 == 0 and save_buffer:
+            if t % 250000 == 0 and save_buffer:
                 print(f"Saving buffer at {t} timestep...")
                 replay_buffer.save(f"{exp_dir}/buffers/replay_buffer")
+
+            if t % 250000 == 0 and save_memory:
+                print(f"Saving memory at {t} timesteps...")
+                replay_buffer.mem.save(f"{exp_dir}/buffers/memory")

@@ -23,6 +23,7 @@ if __name__ == "__main__":
         parser.add_argument("--policy_freq", default=2, type=int)       # Frequency of delayed policy updates
         parser.add_argument("--save_model", action="store_true")        # Save model and optimizer parameters
         parser.add_argument("--save_buffer", default=0)
+        parser.add_argument("--save_memory", default=False, action="store_true")
         parser.add_argument("--load_model", default="")                 # Model load file name, "" doesn't load, "default" uses file_name
         parser.add_argument("--device", default="cuda")
         parser.add_argument("--save_model_every", type=int, default=1000000)      # Save model every timesteps

@@ -51,21 +51,26 @@ class ReplayBuffer(object):
 
 
 class EpisodicReplayBuffer(object):
-    def __init__(self, state_dim, action_dim, max_size=int(1e6), device="cuda"):
+    def __init__(self, state_dim, action_dim, mem,
+                 max_size=int(1e6), device="cuda"):
         self.max_size = max_size
         self.ptr = 0
         self.size = 0
+        self.mem = mem
 
         self.state = np.zeros((max_size, state_dim))
         self.action = np.zeros((max_size, action_dim))
         self.next_state = np.zeros((max_size, state_dim))
         self.reward = np.zeros((max_size, 1))
         self.not_done = np.zeros((max_size, 1))
+        self.q = np.zeros((max_size, 1))
 
         self.ep_state = []
         self.ep_action = []
         self.ep_next_state = []
         self.ep_reward = []
+
+        self.ep_length = 1000
 
         self.device = device
 
@@ -79,16 +84,34 @@ class EpisodicReplayBuffer(object):
         self.ptr = (self.ptr + 1) % self.max_size
         self.size = min(self.size + 1, self.max_size)
 
-    def add(self, state, action, next_state, reward, done):
+    def add(self, state, action, next_state, reward, done, done_limit, done_ep):
         self.ep_state.append(state)
         self.ep_action.append(action)
         self.ep_next_state.append(next_state)
         self.ep_reward.append(reward)
 
-        if done == True:
+        if done_ep == True:
             dones = [0] * (len(self.ep_state) - 1) + [1]
+
+            # Calculate Q-values
+            if done:
+                qs = []
+                reward_np = np.asarray(self.ep_reward)
+
+                n = len(self.ep_reward)
+                for i in range(len(self.ep_reward)):
+                    gamma = np.power(np.ones(n-i) * 0.99, np.arange(n-i))
+
+                    q = np.sum(reward_np[i:] * gamma)
+                    qs.append(q)
+
+                # Add to memory
+                for s, a, q in zip(self.ep_state, self.ep_action, qs):
+                    self.mem.store(s, a, q)
+
             for s, a, ns, r, d in zip(self.ep_state, self.ep_action,
-                                      self.ep_next_state, self.ep_reward, dones):
+                                      self.ep_next_state, self.ep_reward,
+                                      dones):
                 self._add(s, a, ns, r, d)
 
             self.ep_state.clear()
