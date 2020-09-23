@@ -4,7 +4,6 @@ import shutil
 import os
 
 from models.trainer import Trainer
-from models.ep_trainer import EpisodicTrainer
 
 
 def load_trainer(config):
