@@ -7,6 +7,7 @@ from torch.utils.tensorboard import SummaryWriter
 from models.utils import EpisodicReplayBuffer
 from models.TD3 import TD3
 from models.DDPG import DDPG
+from models.CCMEMv0 import CCMEMv0
 
 from .utils import eval_policy
 from .mem import MemBuffer
@@ -64,12 +65,14 @@ class Trainer:
             policy = TD3(**kwargs)
         elif policy == "DDPG":
             policy = DDPG(**kwargs)
+        elif policy == "CCMEMv0":
+            policy = CCMEMv0(**kwargs)
 
         load_model = self.c["load_model"]
         if load_model != "":
             policy.load(f"{exp_dir}/models/{load_model}")
 
-        mem = MemBuffer(state_dim, action_dim, 500000)
+        mem = MemBuffer(state_dim, action_dim, 100000, device=kwargs["device"])
         replay_buffer = EpisodicReplayBuffer(state_dim, action_dim, mem, device=device)
 
         # Evaluate untrained policy

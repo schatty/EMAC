@@ -8,7 +8,7 @@ from torch.utils.tensorboard import SummaryWriter
 from .nn import Actor, Critic
 
 
-class DDPG(object):
+class CCMEMv0(object):
     def __init__(self, state_dim, action_dim, max_action, discount=0.99,
             tau=0.005, device="cuda", log_dir="tb"):
         self.actor = Actor(state_dim, action_dim, max_action).to(device)
@@ -39,6 +39,17 @@ class DDPG(object):
         target_Q = self.critic_target(next_state, self.actor_target(next_state))
         target_Q = reward + (not_done * self.discount * target_Q).detach()
 
+        time1 = time.time()
+        mem_q = replay_buffer.mem.retrieve_cuda(state, action, self.step)
+        mem_q = torch.from_numpy(mem_q).float().to(self.device)
+
+        cur_mem = torch.cat([target_Q, mem_q], dim=1)
+        target_Q, min_inds = torch.min(cur_mem, dim=1)
+        target_Q.unsqueeze_(1)  # [batch, 1]
+
+        mem_contrib = torch.sum(min_inds).item() / batch_size
+        mem_time = time.time() - time1
+
         # Get current Q estimate
         current_Q = self.critic(state, action)
 
@@ -52,7 +63,7 @@ class DDPG(object):
 
         # Compute actor loss
         actor_loss = -self.critic(state, self.actor(state)).mean()
-        
+
         # Optimize the actor 
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
@@ -73,6 +84,8 @@ class DDPG(object):
             self.tb_logger.add_scalar("algo/q_loss", q_loss, self.step)
             pi_loss = actor_loss.detach().cpu().item()
             self.tb_logger.add_scalar("algo/pi_loss", pi_loss, self.step)
+            self.tb_logger.add_scalar("algo/mem_retrieve_time", mem_time, self.step)
+            self.tb_logger.add_scalar("algo/mem_contribution", mem_contrib, self.step)
         self.step += 1
 
     def save(self, filename):
