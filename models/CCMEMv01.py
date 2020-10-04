@@ -23,7 +23,6 @@ class CCMEMv01(object):
         self.tau = tau
         self.device = device
         self.q = 0
-        print("ALPHA: ", alpha)
         self.alpha = alpha
 
         self.step = 0

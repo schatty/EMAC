@@ -69,6 +69,7 @@ class Trainer:
         elif policy == "CCMEMv00":
             policy = CCMEMv00(**kwargs)
         elif policy == "CCMEMv01":
+            kwargs["alpha"] = self.c["alpha"]
             policy = CCMEMv01(**kwargs)
 
         load_model = self.c["load_model"]
