@@ -8,9 +8,9 @@ from torch.utils.tensorboard import SummaryWriter
 from .nn import Actor, Critic
 
 
-class CCMEMv00(object):
+class CCMEMv01(object):
     def __init__(self, state_dim, action_dim, max_action, discount=0.99,
-            tau=0.005, device="cuda", log_dir="tb"):
+            tau=0.005, alpha=0.1, device="cuda", log_dir="tb"):
         self.actor = Actor(state_dim, action_dim, max_action).to(device)
         self.actor_target = copy.deepcopy(self.actor)
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters())
@@ -23,6 +23,8 @@ class CCMEMv00(object):
         self.tau = tau
         self.device = device
         self.q = 0
+        print("ALPHA: ", alpha)
+        self.alpha = alpha
 
         self.step = 0
         self.tb_logger = SummaryWriter(log_dir)
@@ -44,9 +46,11 @@ class CCMEMv00(object):
         mem_q = torch.from_numpy(mem_q).float().to(self.device)
 
         cur_mem = torch.cat([target_Q, mem_q], dim=1)
-        target_Q, min_inds = torch.min(cur_mem, dim=1)
-        target_Q.unsqueeze_(1)  # [batch, 1]
+        _, min_inds = torch.min(cur_mem, dim=1)
 
+        # Modify only optimistic critic values
+        target_Q[min_inds] = self.alpha * mem_q[min_inds] + (1 - self.alpha) * target_Q[min_inds]
+       
         mem_contrib = torch.sum(min_inds).item() / batch_size
         mem_time = time.time() - time1
 

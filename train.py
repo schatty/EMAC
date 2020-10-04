@@ -29,6 +29,7 @@ if __name__ == "__main__":
         parser.add_argument("--save_model_every", type=int, default=1000000)      # Save model every timesteps
         parser.add_argument("--exp_name", default="test")
         parser.add_argument("--results_dir", default="~/results_memory") # Directory for storing all experimental data
+        parser.add_argument("--alpha", default=0.1, type=float)
         args = parser.parse_args()
 
         print("---------------------------------------")

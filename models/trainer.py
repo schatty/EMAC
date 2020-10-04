@@ -7,7 +7,8 @@ from torch.utils.tensorboard import SummaryWriter
 from models.utils import EpisodicReplayBuffer
 from models.TD3 import TD3
 from models.DDPG import DDPG
-from models.CCMEMv0 import CCMEMv0
+from models.CCMEMv0 import CCMEMv00
+from models.CCMEMv01 import CCMEMv01
 
 from .utils import eval_policy
 from .mem import MemBuffer
@@ -65,8 +66,10 @@ class Trainer:
             policy = TD3(**kwargs)
         elif policy == "DDPG":
             policy = DDPG(**kwargs)
-        elif policy == "CCMEMv0":
-            policy = CCMEMv0(**kwargs)
+        elif policy == "CCMEMv00":
+            policy = CCMEMv00(**kwargs)
+        elif policy == "CCMEMv01":
+            policy = CCMEMv01(**kwargs)
 
         load_model = self.c["load_model"]
         if load_model != "":
