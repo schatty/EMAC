@@ -28,6 +28,7 @@ if __name__ == "__main__":
         parser.add_argument("--device", default="cuda")
         parser.add_argument("--save_model_every", type=int, default=1000000)      # Save model every timesteps
         parser.add_argument("--exp_name", default="test")
+        parser.add_argument("--results_dir", default="~/results_memory") # Directory for storing all experimental data
         args = parser.parse_args()
 
         print("---------------------------------------")
@@ -35,8 +36,9 @@ if __name__ == "__main__":
         print("---------------------------------------")
 
         dt = datetime.now()
+        results_dir = args.results_dir
         exp_dir = dt.strftime("%b_%d_%Y")
-        exp_dir = f"./results/{exp_dir}_{args.policy}_{args.env}_{args.seed}_{args.exp_name}"
+        exp_dir = f"~/{results_dir}/{exp_dir}_{args.policy}_{args.env}_{args.seed}_{args.exp_name}"
         if os.path.exists(exp_dir):
             ans = input(f"Directory {exp_dir} already exists. Overwrite? [Y/n] ")
             if ans == "Y":
