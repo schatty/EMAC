@@ -78,7 +78,8 @@ class Trainer:
 
         mem = MemBuffer(state_dim, action_dim, 100000,
                         mem_dim=4, device=kwargs["device"])
-        replay_buffer = EpisodicReplayBuffer(state_dim, action_dim, mem, device=device)
+        replay_buffer = EpisodicReplayBuffer(state_dim, action_dim, mem,
+                                             device=device, expl_noise=self.c["expl_noise"])
 
         # Evaluate untrained policy
         ep_reward = eval_policy(policy, env_name, seed)
@@ -103,11 +104,10 @@ class Trainer:
 
             # Perform action
             next_state, reward, done_env, _ = env.step(action)
-            done_limit = episode_timesteps > env._max_episode_steps
+            done_limit = done_env if episode_timesteps < self.c["ep_len"] else True
 
             # Store data in replay buffer
-            done_ep = float(done_env) if episode_timesteps < env._max_episode_steps else 1
-            replay_buffer.add(state, action, next_state, reward, done_env, done_limit, done_ep)
+            replay_buffer.add(state, action, next_state, reward, done_env, done_limit, env, policy)
 
             state = next_state
             episode_reward += reward
@@ -116,7 +116,7 @@ class Trainer:
             if t >= start_timesteps:
                 policy.train(replay_buffer, batch_size)
 
-            if done_env or done_limit:
+            if done_limit:
                 # +1 to account for 0 indexing. +0 on ep_timesteps since it will increment +1 even if done=True
                 print(f"Total T: {t+1} Episode Num: {episode_num+1} Episode T: {episode_timesteps} Reward: {episode_reward:.3f}")
                 # Reset environment
@@ -128,6 +128,7 @@ class Trainer:
             # Logging buffer size
             if t % 250 == 0:
                 tb_logger.add_scalar("trainer/buffer_size", replay_buffer.size, t)
+                tb_logger.add_scalar("memory/size", replay_buffer.mem.size, t)
 
             # Evaluate episode
             if t % eval_freq == 0:

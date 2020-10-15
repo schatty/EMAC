@@ -52,11 +52,12 @@ class ReplayBuffer(object):
 
 class EpisodicReplayBuffer(object):
     def __init__(self, state_dim, action_dim, mem,
-                 max_size=int(1e6), device="cuda"):
+                 max_size=int(1e6), device="cuda", **kwargs):
         self.max_size = max_size
         self.ptr = 0
         self.size = 0
         self.mem = mem
+        self.expl_noise = kwargs["expl_noise"]
 
         self.state = np.zeros((max_size, state_dim))
         self.action = np.zeros((max_size, action_dim))
@@ -84,30 +85,45 @@ class EpisodicReplayBuffer(object):
         self.ptr = (self.ptr + 1) % self.max_size
         self.size = min(self.size + 1, self.max_size)
 
-    def add(self, state, action, next_state, reward, done, done_limit, done_ep):
+    def add(self, state, action, next_state, reward, done_env, done_limit, env, policy):
         self.ep_state.append(state)
         self.ep_action.append(action)
         self.ep_next_state.append(next_state)
         self.ep_reward.append(reward)
 
-        if done_ep == True:
+        if done_limit:
             dones = [0] * (len(self.ep_state) - 1) + [1]
 
             # Calculate Q-values
-            if done:
-                qs = []
-                reward_np = np.asarray(self.ep_reward)
+            if not done_env:
+                for i_add_step in range(1000):
+                    # TODO: Range of (-1, 1) is for HalfCheetah, Walker, Hopper only
+                    action_dim = env.action_space.shape[0]
+                    action = (
+                            policy.select_action(np.array(state))
+                            + np.random.normal(0, self.expl_noise, size=action_dim)
+                    ).clip(-1, 1)
+                    _, r, d, _ = env.step(action)
+                    self.ep_reward.append(r)
 
-                n = len(self.ep_reward)
-                for i in range(len(self.ep_reward)):
-                    gamma = np.power(np.ones(n-i) * 0.99, np.arange(n-i))
+                    if d:
+                        print("Extended only for ", i_add_step)
+                        break
 
-                    q = np.sum(reward_np[i:] * gamma)
-                    qs.append(q)
+            qs = []
+            reward_np = np.asarray(self.ep_reward)
 
-                # Add to memory
-                for s, a, q in zip(self.ep_state, self.ep_action, qs):
-                    self.mem.store(s, a, q)
+            n = len(self.ep_reward)
+            for i in range(min(1000, len(self.ep_reward))):
+                slide = min(n-i, 1000)
+                gamma = np.power(np.ones(slide) * 0.99, np.arange(slide))
+
+                q = np.sum(reward_np[i:i+slide] * gamma)
+                qs.append(q)
+
+            # Add to memory
+            for s, a, q in zip(self.ep_state, self.ep_action, qs):
+                self.mem.store(s, a, q)
 
             for s, a, ns, r, d in zip(self.ep_state, self.ep_action,
                                       self.ep_next_state, self.ep_reward,
@@ -149,7 +165,9 @@ def eval_policy(policy, env_name, seed, eval_episodes=10):
     avg_reward = 0.
     for _ in range(eval_episodes):
         state, done = eval_env.reset(), False
-        while not done:
+        i_step = 0
+        while not done and i_step < 1000:
+            i_step += 1
             action = policy.select_action(np.array(state))
             state, reward, done, _ = eval_env.step(action)
             avg_reward += reward
