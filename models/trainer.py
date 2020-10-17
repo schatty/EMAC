@@ -9,6 +9,7 @@ from models.TD3 import TD3
 from models.DDPG import DDPG
 from models.CCMEMv0 import CCMEMv00
 from models.CCMEMv01 import CCMEMv01
+from models.CCMEMv02 import CCMEMv02
 
 from .utils import eval_policy
 from .mem import MemBuffer
@@ -71,6 +72,9 @@ class Trainer:
         elif policy == "CCMEMv01":
             kwargs["alpha"] = self.c["alpha"]
             policy = CCMEMv01(**kwargs)
+        elif policy == "CCMEMv02":
+            kwargs["alpha"] = self.c["alpha"]
+            policy = CCMEMv02(**kwargs)
 
         load_model = self.c["load_model"]
         if load_model != "":
