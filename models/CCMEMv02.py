@@ -21,7 +21,6 @@ class CCMEMv02(object):
 
         self.discount = discount
         self.tau = tau
-        print("Alpha: ", alpha)
         self.alpha = alpha
         self.device = device
         self.q = 0

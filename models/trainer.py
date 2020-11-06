@@ -80,7 +80,7 @@ class Trainer:
         if load_model != "":
             policy.load(f"{exp_dir}/models/{load_model}")
 
-        mem = MemBuffer(state_dim, action_dim, 100000,
+        mem = MemBuffer(state_dim, action_dim, 200000,
                         mem_dim=4, device=kwargs["device"])
         replay_buffer = EpisodicReplayBuffer(state_dim, action_dim, mem,
                                              device=device, expl_noise=self.c["expl_noise"])
