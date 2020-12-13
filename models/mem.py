@@ -48,10 +48,16 @@ class MemBuffer:
 
     def retrieve_cuda(self, states, actions, step):
         if step % self._cuda_memory_update == 0:
-            print("Reallocating memory to CUDA...", self._prev_cuda_ptr, self.size)
-            self.sa_cuda[self._prev_cuda_ptr:self.size] = \
-                    t.from_numpy(self.sa[self._prev_cuda_ptr:self.size]).float().to(self.device)
-            self._prev_cuda_ptr = self.size
+            print("Reallocating memory to CUDA...", self._prev_cuda_ptr, self.ptr)
+            if self._prev_cuda_ptr < self.ptr:
+                self.sa_cuda[self._prev_cuda_ptr:self.ptr] = \
+                        t.from_numpy(self.sa[self._prev_cuda_ptr:self.ptr]).float().to(self.device)
+            else:
+                print("(reallocating in two parts)")
+                self.sa_cuda[self._prev_cuda_ptr:] = \
+                        t.from_numpy(self.sa[self._prev_cuda_ptr:]).float().to(self.device)
+                self.sa_cuda[:self.ptr] = \
+                        t.from_numpy(self.sa[:self.ptr]).float().to(self.device)
 
         sa = t.cat([states, actions], dim=1).to(self.device)
         mapping = t.from_numpy(self._mem_mapper).float().to(self.device)

@@ -80,7 +80,7 @@ class Trainer:
         if load_model != "":
             policy.load(f"{exp_dir}/models/{load_model}")
 
-        mem = MemBuffer(state_dim, action_dim, 200000,
+        mem = MemBuffer(state_dim, action_dim, 100000,
                         mem_dim=4, device=kwargs["device"])
         replay_buffer = EpisodicReplayBuffer(state_dim, action_dim, mem,
                                              device=device, expl_noise=self.c["expl_noise"])
@@ -122,7 +122,7 @@ class Trainer:
 
             if done_limit:
                 # +1 to account for 0 indexing. +0 on ep_timesteps since it will increment +1 even if done=True
-                print(f"Total T: {t+1} Episode Num: {episode_num+1} Episode T: {episode_timesteps} Reward: {episode_reward:.3f}")
+                # print(f"Total T: {t+1} Episode Num: {episode_num+1} Episode T: {episode_timesteps} Reward: {episode_reward:.3f}")
                 # Reset environment
                 state = env.reset()
                 episode_reward = 0
