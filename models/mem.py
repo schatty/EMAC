@@ -4,11 +4,13 @@ import torch as t
 
 class MemBuffer:
 
-    def __init__(self, state_dim, action_dim, capacity, mem_dim,
+    def __init__(self, state_dim, action_dim, capacity, k, mem_dim,
                  device="cuda:1"):
+        print("MEMORY MODULE WITH CAPACITY: ", capacity)
         self.max_size = capacity
         self.ptr = 0
         self.size = 0
+        self.k = k
 
         self.sa = np.zeros((capacity, mem_dim))
         self.sa_cuda = t.from_numpy(self.sa).float().to(device)
@@ -64,10 +66,13 @@ class MemBuffer:
         sa = t.mm(sa, mapping)
         sa.unsqueeze_(1)
 
+        # TODO: Bug here, I take only first self.size elements
         l2 = t.pow(t.sum(t.pow(t.abs(self.sa_cuda[:self.size] - sa), 2), dim=-1), 0.5)
-        min_inds = t.argmin(l2, dim=1).cpu().numpy()
+        _, inds = t.topk(l2, self.k, dim=1, largest=False)
+        inds = inds.cpu().numpy()
 
-        qs = self.q[min_inds]
+        qs = self.q[inds]
+        qs = np.mean(qs, axis=1)
         return qs
 
     def save(self, file_name):

@@ -28,9 +28,11 @@ if __name__ == "__main__":
         parser.add_argument("--device", default="cuda")
         parser.add_argument("--save_model_every", type=int, default=1000000)      # Save model every timesteps
         parser.add_argument("--exp_name", default="test")
-        parser.add_argument("--results_dir", default="/home/igor/results_dec_13") # Directory for storing all experimental data
+        parser.add_argument("--results_dir", default="/home/igor/results_dec_14") # Directory for storing all experimental data
         parser.add_argument("--ep_len", default=1000, type=int) # Length of the episdoe
         parser.add_argument("--alpha", default=0.1, type=float)
+        parser.add_argument("--mem_capacity", default=100000, type=int) # Number of transitions that memory holds
+        parser.add_argument("--k", default=1, type=int) # K-nearest for the memory retrieval
         args = parser.parse_args()
 
         print("---------------------------------------")
