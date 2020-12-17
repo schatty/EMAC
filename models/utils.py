@@ -1,3 +1,5 @@
+import os
+import json
 import time
 import gym
 
@@ -214,3 +216,17 @@ def estimate_true_q(policy, env_name, discount, buffer, eval_episodes=1000):
     print("Estimation took: ", time.time() - t1)
 
     return np.mean(qs)
+
+
+class RewardLogger:
+    def __init__(self, exp_dir):
+        self.exp_dir = exp_dir
+        self.data = []
+
+    def log(self, v, step):
+        self.data.append([0, step, v])
+
+    def dump(self, fn):
+        with open(os.path.join(self.exp_dir, fn), "w") as f:
+            json.dump(self.data, f)
+        print("Rewards dumped to ", self.exp_dir)

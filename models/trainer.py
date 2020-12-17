@@ -11,7 +11,7 @@ from models.CCMEMv0 import CCMEMv00
 from models.CCMEMv01 import CCMEMv01
 from models.CCMEMv02 import CCMEMv02
 
-from .utils import eval_policy
+from .utils import eval_policy, RewardLogger
 from .mem import MemBuffer
 
 
@@ -36,6 +36,7 @@ class Trainer:
 
         # Logger
         tb_logger = SummaryWriter(f"{exp_dir}/tb")
+        reward_logger = RewardLogger(exp_dir + "_rewards")
 
         # Set seeds
         seed = self.c["seed"]
@@ -142,6 +143,7 @@ class Trainer:
                 print("Step ", t)
                 ep_reward = eval_policy(policy, env_name, seed)
                 tb_logger.add_scalar("agent/eval_reward", ep_reward, t)
+                reward_logger.log(ep_reward, t)
 
             # Save model
             if save_model and t % save_model_every == 0:
@@ -155,3 +157,11 @@ class Trainer:
             if t % 250000 == 0 and save_memory:
                 print(f"Saving memory at {t} timesteps...")
                 replay_buffer.mem.save(f"{exp_dir}/buffers/memory")
+
+        print("Dumping reward...")
+        env = self.c["env"]
+        policy = self.c["policy"]
+        exp = self.c["exp_name"]
+        seed = self.c["seed"]
+        fn = f"{env}_{policy}_{exp}_{seed}.json"
+        reward_logger.dump(fn)
