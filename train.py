@@ -6,17 +6,10 @@ import os
 from models.trainer import Trainer
 
 
-def load_trainer(config):
-    if config["policy"] in ["DDPG", "TD3"]:
-        return Trainer(config)
-    elif config["policy"] in ["EpisoticDDPG"]:
-        return EpisodicTrainer(config)
-
-
 if __name__ == "__main__":
         parser = argparse.ArgumentParser()
         parser.add_argument("--policy", default="TD3")                  # Policy name (TD3, DDPG or OurDDPG)
-        parser.add_argument("--env", default="HalfCheetah-v2")          # OpenAI gym environment name
+        parser.add_argument("--env", default="Walker2d-v3")          # OpenAI gym environment name
         parser.add_argument("--seed", default=0, type=int)              # Sets Gym, PyTorch and Numpy seeds
         parser.add_argument("--start_timesteps", default=25e3, type=int)# Time steps initial random policy is used
         parser.add_argument("--eval_freq", default=5e3, type=int)       # How often (time steps) we evaluate
@@ -30,10 +23,16 @@ if __name__ == "__main__":
         parser.add_argument("--policy_freq", default=2, type=int)       # Frequency of delayed policy updates
         parser.add_argument("--save_model", action="store_true")        # Save model and optimizer parameters
         parser.add_argument("--save_buffer", default=0)
+        parser.add_argument("--save_memory", default=False, action="store_true")
         parser.add_argument("--load_model", default="")                 # Model load file name, "" doesn't load, "default" uses file_name
         parser.add_argument("--device", default="cuda")
         parser.add_argument("--save_model_every", type=int, default=1000000)      # Save model every timesteps
         parser.add_argument("--exp_name", default="test")
+        parser.add_argument("--results_dir", default="/home/igor/results_dec_16") # Directory for storing all experimental data
+        parser.add_argument("--ep_len", default=1000, type=int) # Length of the episdoe
+        parser.add_argument("--alpha", default=0.1, type=float)
+        parser.add_argument("--mem_capacity", default=100000, type=int) # Number of transitions that memory holds
+        parser.add_argument("--k", default=1, type=int) # K-nearest for the memory retrieval
         args = parser.parse_args()
 
         print("---------------------------------------")
@@ -41,8 +40,9 @@ if __name__ == "__main__":
         print("---------------------------------------")
 
         dt = datetime.now()
+        results_dir = args.results_dir
         exp_dir = dt.strftime("%b_%d_%Y")
-        exp_dir = f"./results/{exp_dir}_{args.policy}_{args.env}_{args.seed}_{args.exp_name}"
+        exp_dir = f"{results_dir}/{exp_dir}_{args.policy}_{args.env}_{args.seed}_{args.exp_name}"
         if os.path.exists(exp_dir):
             ans = input(f"Directory {exp_dir} already exists. Overwrite? [Y/n] ")
             if ans == "Y":
@@ -60,6 +60,6 @@ if __name__ == "__main__":
         config = vars(args)
         print("Config: ", config)
 
-        trainer = load_trainer(config)
+        trainer = Trainer(config)
         trainer.train(exp_dir)
 
