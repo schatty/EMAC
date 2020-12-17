@@ -139,6 +139,7 @@ class Trainer:
 
             # Evaluate episode
             if t % eval_freq == 0:
+                print("Step ", t)
                 ep_reward = eval_policy(policy, env_name, seed)
                 tb_logger.add_scalar("agent/eval_reward", ep_reward, t)
 

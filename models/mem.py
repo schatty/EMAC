@@ -15,7 +15,7 @@ class MemBuffer:
         self.sa = np.zeros((capacity, mem_dim))
         self.sa_cuda = t.from_numpy(self.sa).float().to(device)
         self.q = np.zeros((capacity, 1))
-        self._cuda_memory_update = 2000
+        self._cuda_memory_update = 100
         self._prev_cuda_ptr = 0
         self.device = device
 
@@ -50,7 +50,7 @@ class MemBuffer:
 
     def retrieve_cuda(self, states, actions, step):
         if step % self._cuda_memory_update == 0:
-            print("Reallocating memory to CUDA...", self._prev_cuda_ptr, self.ptr)
+            # print("Reallocating memory to CUDA...", self._prev_cuda_ptr, self.ptr)
             if self._prev_cuda_ptr < self.ptr:
                 self.sa_cuda[self._prev_cuda_ptr:self.ptr] = \
                         t.from_numpy(self.sa[self._prev_cuda_ptr:self.ptr]).float().to(self.device)
@@ -68,11 +68,19 @@ class MemBuffer:
 
         # TODO: Bug here, I take only first self.size elements
         l2 = t.pow(t.sum(t.pow(t.abs(self.sa_cuda[:self.size] - sa), 2), dim=-1), 0.5)
-        _, inds = t.topk(l2, self.k, dim=1, largest=False)
+        dists, inds = t.topk(l2, self.k, dim=1, largest=False)
+
+        softmin = t.nn.Softmin(dim=1)
+        weights = softmin(dists)
+
         inds = inds.cpu().numpy()
+        weights = weights.cpu().numpy()
 
         qs = self.q[inds]
-        qs = np.mean(qs, axis=1)
+        weights = np.expand_dims(weights, 2)
+        qs = np.multiply(qs, weights) 
+        qs = np.sum(qs, axis=1)
+
         return qs
 
     def save(self, file_name):
