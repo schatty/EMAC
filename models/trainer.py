@@ -37,7 +37,7 @@ class Trainer:
 
         # Logger
         tb_logger = SummaryWriter(f"{exp_dir}/tb")
-        reward_logger = RewardLogger(exp_dir + "_rewards")
+        reward_logger = RewardLogger(self.c["results_dir"] + "_rewards")
 
         # Set seeds
         seed = self.c["seed"]
