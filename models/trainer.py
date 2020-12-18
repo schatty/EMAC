@@ -10,7 +10,9 @@ from models.DDPG import DDPG
 from models.CCMEMv0 import CCMEMv00
 from models.CCMEMv01 import CCMEMv01
 from models.CCMEMv02 import CCMEMv02
+from models.CCMEMv021 import CCMEMv021
 from models.CCMEMv03 import CCMEMv03
+from models.CCMEMv031 import CCMEMv031
 
 from .utils import eval_policy, RewardLogger
 from .mem import MemBuffer
@@ -77,9 +79,17 @@ class Trainer:
         elif policy == "CCMEMv02":
             kwargs["alpha"] = self.c["alpha"]
             policy = CCMEMv02(**kwargs)
+        elif policy == "CCMEMv021":
+            kwargs["alpha"] = self.c["alpha"]
+            kwargs["weak_memory"] = self.c["weak_memory"]
+            policy = CCMEMv021(**kwargs)
         elif policy == "CCMEMv03":
             kwargs["alpha"] = self.c["alpha"]
             policy = CCMEMv03(**kwargs)
+        elif policy == "CCMEMv031":
+            kwargs["weak_memory"] = self.c["weak_memory"]
+            kwargs["alpha"] = self.c["alpha"]
+            policy = CCMEMv031(**kwargs)
 
         load_model = self.c["load_model"]
         if load_model != "":
