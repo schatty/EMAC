@@ -223,6 +223,9 @@ class RewardLogger:
         self.exp_dir = exp_dir
         self.data = []
 
+        if not os.path.exists(exp_dir):
+            os.makedirs(exp_dir)
+
     def log(self, v, step):
         self.data.append([0, step, v])
 
