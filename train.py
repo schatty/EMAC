@@ -17,7 +17,7 @@ if __name__ == "__main__":
         parser.add_argument("--expl_noise", default=0.1)                # Std of Gaussian exploration noise
         parser.add_argument("--batch_size", default=256, type=int)      # Batch size for both actor and critic
         parser.add_argument("--discount", default=0.99)                 # Discount factor
-        parser.add_argument("--tau", default=0.005)                     # Target network update rate
+        parser.add_argument("--tau", type=float, default=0.005)                     # Target network update rate
         parser.add_argument("--policy_noise", default=0.2)              # Noise added to target policy during critic update
         parser.add_argument("--noise_clip", default=0.5)                # Range to clip target policy noise
         parser.add_argument("--policy_freq", default=2, type=int)       # Frequency of delayed policy updates
@@ -28,7 +28,7 @@ if __name__ == "__main__":
         parser.add_argument("--device", default="cuda")
         parser.add_argument("--save_model_every", type=int, default=1000000)      # Save model every timesteps
         parser.add_argument("--exp_name", default="test")
-        parser.add_argument("--results_dir", default="/home/igor/results_dec_18") # Directory for storing all experimental data
+        parser.add_argument("--results_dir", default="/home/igor/results_dec_26") # Directory for storing all experimental data
         parser.add_argument("--ep_len", default=1000, type=int) # Length of the episdoe
         parser.add_argument("--alpha", default=0.1, type=float)
         parser.add_argument("--mem_capacity", default=100000, type=int) # Number of transitions that memory holds
@@ -57,12 +57,6 @@ if __name__ == "__main__":
             fn = f"{exp_dir}/{fold}"
             if not os.path.exists(fn):
                 os.makedirs(fn)
-
-        # Create separate dir for rewards only
-        reward_dir = exp_dir + "_rewards"
-        print("Rewards dir", reward_dir)
-        if not os.path.exists(reward_dir):
-            os.makedirs(reward_dir)
 
         config = vars(args)
         print("Config: ", config)

@@ -77,7 +77,7 @@ class EpisodicReplayBuffer(object):
 
         self.device = device
 
-    def _add(self, state, action, next_state, reward, done):
+    def _add_replay_buffer(self, state, action, next_state, reward, done):
         self.state[self.ptr] = state
         self.action[self.ptr] = action
         self.next_state[self.ptr] = next_state
@@ -130,7 +130,7 @@ class EpisodicReplayBuffer(object):
             for s, a, ns, r, d in zip(self.ep_state, self.ep_action,
                                       self.ep_next_state, self.ep_reward,
                                       dones):
-                self._add(s, a, ns, r, d)
+                self._add_replay_buffer(s, a, ns, r, d)
 
             self.ep_state.clear()
             self.ep_action.clear()

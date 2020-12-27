@@ -79,6 +79,8 @@ class CCMEMv02(object):
         if self.step % 250 == 0:
             q = np.mean(current_Q.detach().cpu().numpy())
             self.tb_logger.add_scalar("algo/q", q, self.step)
+            q_mem = np.mean(mem_q.cpu().numpy())
+            self.tb_logger.add_scalar("algo/q_mem", q_mem, self.step)
             q_loss = q_loss.detach().cpu().item()
             self.tb_logger.add_scalar("algo/q_cur_loss", q_loss, self.step)
             q_mem_loss = q_loss_mem.detach().cpu().item()
