@@ -11,6 +11,8 @@ from models.CCMEMv0 import CCMEMv00
 from models.CCMEMv01 import CCMEMv01
 from models.CCMEMv02 import CCMEMv02
 from models.CCMEMv021 import CCMEMv021
+from models.CCMEMv022 import CCMEMv022
+from models.CCMEMv023 import CCMEMv023
 from models.CCMEMv03 import CCMEMv03
 from models.CCMEMv031 import CCMEMv031
 
@@ -83,6 +85,12 @@ class Trainer:
             kwargs["alpha"] = self.c["alpha"]
             kwargs["weak_memory"] = self.c["weak_memory"]
             policy = CCMEMv021(**kwargs)
+        elif policy == "CCMEMv022":
+            kwargs["alpha"] = self.c["alpha"]
+            policy = CCMEMv022(**kwargs)
+        elif policy == "CCMEMv023":
+            kwargs["alpha"] = self.c["alpha"]
+            policy = CCMEMv023(**kwargs)
         elif policy == "CCMEMv03":
             kwargs["alpha"] = self.c["alpha"]
             policy = CCMEMv03(**kwargs)
