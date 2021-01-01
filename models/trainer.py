@@ -6,6 +6,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from models.utils import EpisodicReplayBuffer
 from models.TD3 import TD3
+from models.TD3S import TD3S
 from models.DDPG import DDPG
 from models.CCMEMv0 import CCMEMv00
 from models.CCMEMv01 import CCMEMv01
@@ -13,6 +14,8 @@ from models.CCMEMv02 import CCMEMv02
 from models.CCMEMv021 import CCMEMv021
 from models.CCMEMv022 import CCMEMv022
 from models.CCMEMv023 import CCMEMv023
+from models.CCMEMv024 import CCMEMv024
+from models.CCMEMv025 import CCMEMv025
 from models.CCMEMv03 import CCMEMv03
 from models.CCMEMv031 import CCMEMv031
 
@@ -38,6 +41,7 @@ class Trainer:
         device = self.c["device"]
         env_name = self.c["env"]
         env = gym.make(self.c["env"])
+        substeps = self.c["substeps"]
 
         # Logger
         tb_logger = SummaryWriter(f"{exp_dir}/tb")
@@ -71,6 +75,12 @@ class Trainer:
             kwargs["noise_clip"] = self.c["noise_clip"] * max_action
             kwargs["policy_freq"] = self.c["policy_freq"]
             policy = TD3(**kwargs)
+        if policy == "TD3S":
+            # Target policy smoothing is scaled wrt the action scale
+            kwargs["policy_noise"] = self.c["policy_noise"] * max_action
+            kwargs["noise_clip"] = self.c["noise_clip"] * max_action
+            kwargs["policy_freq"] = self.c["policy_freq"]
+            policy = TD3S(**kwargs)
         elif policy == "DDPG":
             policy = DDPG(**kwargs)
         elif policy == "CCMEMv00":
@@ -91,6 +101,14 @@ class Trainer:
         elif policy == "CCMEMv023":
             kwargs["alpha"] = self.c["alpha"]
             policy = CCMEMv023(**kwargs)
+        elif policy == "CCMEMv024":
+            kwargs["alpha"] = self.c["alpha"]
+            policy = CCMEMv024(**kwargs)
+        elif policy == "CCMEMv025":
+            kwargs["alpha"] = self.c["alpha"]
+            kwargs["policy_noise"] = self.c["policy_noise"] * max_action
+            kwargs["noise_clip"] = self.c["noise_clip"] * max_action
+            policy = CCMEMv025(**kwargs)
         elif policy == "CCMEMv03":
             kwargs["alpha"] = self.c["alpha"]
             policy = CCMEMv03(**kwargs)
@@ -144,7 +162,8 @@ class Trainer:
 
             # Train agent after collecting sufficient data
             if t >= start_timesteps:
-                policy.train(replay_buffer, batch_size)
+                for _ in range(substeps):
+                    policy.train(replay_buffer, batch_size)
 
             if done_limit:
                 # +1 to account for 0 indexing. +0 on ep_timesteps since it will increment +1 even if done=True
