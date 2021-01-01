@@ -64,7 +64,7 @@ class Trainer:
             "discount": self.c["discount"],
             "tau": self.c["tau"],
             "device": self.c["device"],
-            "log_dir": f"{exp_dir}/tb"
+            "log_dir": f"{exp_dir}/tb",
         }
 
         # Initialize policy
@@ -124,7 +124,9 @@ class Trainer:
         mem = MemBuffer(state_dim, action_dim,
                         capacity=self.c["mem_capacity"],
                         k=self.c["k"],
-                        mem_dim=4, device=kwargs["device"])
+                        mem_dim=4, 
+                        cosine=self.c["cosine"],
+                        device=kwargs["device"])
         replay_buffer = EpisodicReplayBuffer(state_dim, action_dim, mem,
                                              device=device,
                                              expl_noise=self.c["expl_noise"])
@@ -137,6 +139,11 @@ class Trainer:
         episode_reward = 0
         episode_timesteps = 0
         episode_num = 0
+
+        # Evaluate random policy 
+        ep_reward = eval_policy(policy, env_name, seed)
+        tb_logger.add_scalar("agent/eval_reward", ep_reward, 0)
+        reward_logger.log(ep_reward, 0)
 
         for t in range(1, int(max_timesteps)+1):
             episode_timesteps += 1
