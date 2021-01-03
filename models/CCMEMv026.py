@@ -5,21 +5,31 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
+from itertools import chain
+
+
+class Encoder(nn.Module):
+    def __init__(self, state_dim, out_dim):
+        super(Encoder, self).__init__()
+
+        self.l1 = nn.Linear(state_dim, out_dim)
+
+    def forward(self, state):
+        e = F.relu(self.l1(state))
+        return e
+
 
 class Actor(nn.Module):
     def __init__(self, state_dim, action_dim, max_action):
-        max_action = 0.4
         super(Actor, self).__init__()
 
-        self.l1 = nn.Linear(state_dim, 256)
         self.l2 = nn.Linear(256, 256)
         self.l3 = nn.Linear(256, action_dim)
 
         self.max_action = max_action
 
-    def forward(self, state):
-        a = F.relu(self.l1(state))
-        a = F.relu(self.l2(a))
+    def forward(self, s_emb):
+        a = F.relu(self.l2(s_emb))
         return self.max_action * torch.tanh(self.l3(a))
 
 
@@ -27,61 +37,57 @@ class Critic(nn.Module):
     def __init__(self, state_dim, action_dim):
         super(Critic, self).__init__()
 
-        self.l1 = nn.Linear(state_dim + action_dim, 400)
-        self.l2 = nn.Linear(400, 400)
-        self.l3 = nn.Linear(400, 1)
+        self.l1 = nn.Linear(action_dim, 64)
+        self.l2 = nn.Linear(256 + 64, 256)
+        self.l3 = nn.Linear(256, 1)
 
-    def forward(self, state, action):
-        q = F.relu(self.l1(torch.cat([state, action], 1)))
+    def forward(self, s_emb, action):
+        q_a = self.l1(action)
+        q = torch.cat([s_emb, q_a], 1)
         q = F.relu(self.l2(q))
         return self.l3(q)
 
 
-class CCMEMv025(object):
+class CCMEMv026(object):
     def __init__(self, state_dim, action_dim, max_action, discount=0.99, alpha=0.0,
-            policy_noise=0.2,
-            noise_clip=0.5,
             tau=0.005, device="cuda", log_dir="tb"):
+
+        self.encoder = Encoder(state_dim, 256).to(device)
+
         self.actor = Actor(state_dim, action_dim, max_action).to(device)
         self.actor_target = copy.deepcopy(self.actor)
-        self.actor_optimizer = torch.optim.Adam(self.actor.parameters())
+        self.actor_optimizer = torch.optim.Adam(chain(*[self.actor.parameters(), self.encoder.parameters()]))
+        print("Actor optimizer created.")
 
         self.critic = Critic(state_dim, action_dim).to(device)
         self.critic_target = copy.deepcopy(self.critic)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters())
+        print("Critic optimizer created.")
 
-        self.max_action = max_action
         self.discount = discount
         self.tau = tau
         self.alpha = alpha
         self.device = device
         self.q = 0
-        self.policy_noise = policy_noise
-        self.noise_clip = noise_clip
 
         self.step = 0
         self.tb_logger = SummaryWriter(log_dir)
 
     def select_action(self, state):
         state = torch.FloatTensor(state.reshape(1, -1)).to(self.device)
-        return self.actor(state).cpu().data.numpy().flatten()
+        state_emb = self.encoder(state)
+        return self.actor(state_emb).cpu().data.numpy().flatten()
 
     def train(self, replay_buffer, batch_size=100):
         # Sample replay buffer 
         state, action, next_state, reward, not_done = replay_buffer.sample(batch_size)
-        
-        with torch.no_grad():
-            noise = (
-                    torch.randn_like(action) * self.policy_noise
-            ).clamp(-self.noise_clip, self.noise_clip)
 
-            next_action = (
-                    self.actor_target(next_state) + noise
-            ).clamp(-self.max_action, self.max_action)
+        state_emb = self.encoder(state)
+        next_state_emb = self.encoder(next_state).detach()
 
-            # Compute the target Q value
-            target_Q = self.critic_target(next_state, next_action)
-            target_Q = reward + (not_done * self.discount * target_Q).detach()
+        # Compute the target Q value
+        target_Q = self.critic_target(next_state_emb, self.actor_target(next_state_emb))
+        target_Q = reward + (not_done * self.discount * target_Q).detach()
 
         time1 = time.time()
         mem_q = replay_buffer.mem.retrieve_cuda(state, action, self.step)
@@ -91,7 +97,7 @@ class CCMEMv025(object):
         mem_time = time.time() - time1
 
         # Get current Q estimate
-        current_Q = self.critic(state, action)
+        current_Q = self.critic(state_emb, action)
 
         # Compute critic loss
         q_loss = F.mse_loss(current_Q, target_Q)
@@ -100,25 +106,23 @@ class CCMEMv025(object):
 
         # Optimize the critic
         self.critic_optimizer.zero_grad()
-        critic_loss.backward()
+        critic_loss.backward(retain_graph=True)
         self.critic_optimizer.step()
 
-        if self.step % 2 == 0:
+        # Compute actor loss
+        actor_loss = -self.critic(state_emb, self.actor(state_emb.detach())).mean()
 
-            # Compute actor loss
-            actor_loss = -self.critic(state, self.actor(state)).mean()
+        # Optimize the actor 
+        self.actor_optimizer.zero_grad()
+        actor_loss.backward()
+        self.actor_optimizer.step()
 
-            # Optimize the actor 
-            self.actor_optimizer.zero_grad()
-            actor_loss.backward()
-            self.actor_optimizer.step()
+        # Update the frozen target models
+        for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
+                target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
 
-            # Update the frozen target models
-            for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
-                    target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
-
-            for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
-                    target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
+        for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
+                target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
 
         # Logging
         if self.step % 250 == 0:

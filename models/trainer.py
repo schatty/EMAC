@@ -16,6 +16,7 @@ from models.CCMEMv022 import CCMEMv022
 from models.CCMEMv023 import CCMEMv023
 from models.CCMEMv024 import CCMEMv024
 from models.CCMEMv025 import CCMEMv025
+from models.CCMEMv026 import CCMEMv026
 from models.CCMEMv03 import CCMEMv03
 from models.CCMEMv031 import CCMEMv031
 
@@ -109,6 +110,9 @@ class Trainer:
             kwargs["policy_noise"] = self.c["policy_noise"] * max_action
             kwargs["noise_clip"] = self.c["noise_clip"] * max_action
             policy = CCMEMv025(**kwargs)
+        elif policy == "CCMEMv026":
+            kwargs["alpha"] = self.c["alpha"]
+            policy = CCMEMv026(**kwargs)
         elif policy == "CCMEMv03":
             kwargs["alpha"] = self.c["alpha"]
             policy = CCMEMv03(**kwargs)
