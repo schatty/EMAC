@@ -133,6 +133,8 @@ class Trainer:
                         device=kwargs["device"])
         replay_buffer = EpisodicReplayBuffer(state_dim, action_dim, mem,
                                              device=device,
+                                             prioritized=self.c["prioritized"],
+                                             pr_alpha=self.c["pr_alpha"],
                                              expl_noise=self.c["expl_noise"])
 
         # Evaluate untrained policy

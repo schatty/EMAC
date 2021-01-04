@@ -41,7 +41,7 @@ class CCMEMv02(object):
         target_Q = reward + (not_done * self.discount * target_Q).detach()
 
         time1 = time.time()
-        mem_q = replay_buffer.mem.retrieve_cuda(state, action, self.step)
+        mem_q = replay_buffer.mem.retrieve_cuda(state, action)
         mem_q = torch.from_numpy(mem_q).float().to(self.device)
 
         #mem_contrib = torch.sum(min_inds).item() / batch_size

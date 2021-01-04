@@ -8,7 +8,8 @@ import torch
 
 
 class ReplayBuffer(object):
-    def __init__(self, state_dim, action_dim, max_size=int(1e6), device="cuda"):
+    def __init__(self, state_dim, action_dim, max_size=int(1e6),
+            device="cuda", **kwargs):
         self.max_size = max_size
         self.ptr = 0
         self.size = 0
@@ -54,7 +55,7 @@ class ReplayBuffer(object):
 
 class EpisodicReplayBuffer(object):
     def __init__(self, state_dim, action_dim, mem,
-                 max_size=int(1e6), device="cuda", **kwargs):
+                 max_size=int(1e6), device="cuda", prioritized=False, pr_alpha=0.0, **kwargs):
         self.max_size = max_size
         self.ptr = 0
         self.size = 0
@@ -67,6 +68,8 @@ class EpisodicReplayBuffer(object):
         self.reward = np.zeros((max_size, 1))
         self.not_done = np.zeros((max_size, 1))
         self.q = np.zeros((max_size, 1))
+        self.p = np.ones(max_size)
+        self.pr_alpha = pr_alpha
 
         self.ep_state = []
         self.ep_action = []
@@ -74,8 +77,10 @@ class EpisodicReplayBuffer(object):
         self.ep_reward = []
 
         self.ep_length = 1000
+        self.prioritized = prioritized
 
         self.device = device
+        print("Self prioritized: ", self.prioritized)
 
     def _add_replay_buffer(self, state, action, next_state, reward, done):
         self.state[self.ptr] = state
@@ -137,8 +142,26 @@ class EpisodicReplayBuffer(object):
             self.ep_next_state.clear()
             self.ep_reward.clear()
 
+            if self.prioritized:
+                self._recalc_priorities()
+
+    def _recalc_priorities(self):
+        batch = 256
+        for i in range(0, self.size, batch):
+            i_ = min(i+batch, self.max_size)
+            state = torch.from_numpy(self.state[i:i_]).float()
+            action = torch.from_numpy(self.action[i:i_]).float()
+            self.p[i:i_] = self.mem.retrieve_cuda(state, action, k=1).flatten()
+
+        self.p[:self.size] -= self.reward[:self.size].flatten() + 1e-7
+        self.p[:self.size] = np.abs(self.p[:self.size])
+
+        self.p[:self.size] **= self.pr_alpha
+        d_s = np.sum(self.p[:self.size]) 
+        self.p[:self.size] /= d_s
+
     def sample(self, batch_size):
-        ind = np.random.randint(0, self.size, size=batch_size)
+        ind = np.random.choice(self.size, batch_size, p=self.p[:self.size])
 
         return (
                 torch.FloatTensor(self.state[ind]).to(self.device),

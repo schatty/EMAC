@@ -46,7 +46,10 @@ class MemBuffer:
 
         return d
 
-    def retrieve_cuda(self, states, actions, step):
+    def retrieve_cuda(self, states, actions, k=None):
+        if k is None:
+            k = self.k
+
         sa = t.cat([states, actions], dim=1).to(self.device)
         mapping = t.from_numpy(self._mem_mapper).float().to(self.device)
         sa = t.mm(sa, mapping)
@@ -58,7 +61,7 @@ class MemBuffer:
         else:
             dists_all = self._calc_l2_dist(self.sa_cuda[:self.size], sa)
             soft = t.nn.Softmin(dim=1)
-        dists, inds = t.topk(dists_all, self.k, dim=1, largest=False)
+        dists, inds = t.topk(dists_all, k, dim=1, largest=False)
 
         #softmin = t.nn.Softmin(dim=1)
         weights = soft(dists)
