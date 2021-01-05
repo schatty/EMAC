@@ -153,7 +153,6 @@ class EpisodicReplayBuffer(object):
             action = torch.from_numpy(self.action[i:i_]).float()
             self.p[i:i_] = self.mem.retrieve_cuda(state, action, k=1).flatten()
 
-        self.p[:self.size] -= self.reward[:self.size].flatten() + 1e-7
         self.p[:self.size] = np.abs(self.p[:self.size])
 
         self.p[:self.size] **= self.pr_alpha
