@@ -135,6 +135,7 @@ class Trainer:
                                              device=device,
                                              prioritized=self.c["prioritized"],
                                              pr_alpha=self.c["pr_alpha"],
+                                             start_timesteps=self.c["start_timesteps"],
                                              expl_noise=self.c["expl_noise"])
 
         # Evaluate untrained policy
@@ -168,7 +169,7 @@ class Trainer:
             done_limit = done_env if episode_timesteps < self.c["ep_len"] else True
 
             # Store data in replay buffer
-            replay_buffer.add(state, action, next_state, reward, done_env, done_limit, env, policy)
+            replay_buffer.add(state, action, next_state, reward, done_env, done_limit, env, policy, t)
 
             state = next_state
             episode_reward += reward

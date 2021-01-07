@@ -55,7 +55,7 @@ class ReplayBuffer(object):
 
 class EpisodicReplayBuffer(object):
     def __init__(self, state_dim, action_dim, mem,
-                 max_size=int(1e6), device="cuda", prioritized=False, pr_alpha=0.0, **kwargs):
+                 max_size=int(1e6), device="cuda", prioritized=False, pr_alpha=0.0, start_timesteps=0, **kwargs):
         self.max_size = max_size
         self.ptr = 0
         self.size = 0
@@ -78,6 +78,7 @@ class EpisodicReplayBuffer(object):
 
         self.ep_length = 1000
         self.prioritized = prioritized
+        self.start_timesteps = start_timesteps
 
         self.device = device
         print("Self prioritized: ", self.prioritized)
@@ -92,7 +93,7 @@ class EpisodicReplayBuffer(object):
         self.ptr = (self.ptr + 1) % self.max_size
         self.size = min(self.size + 1, self.max_size)
 
-    def add(self, state, action, next_state, reward, done_env, done_limit, env, policy):
+    def add(self, state, action, next_state, reward, done_env, done_limit, env, policy, step):
         self.ep_state.append(state)
         self.ep_action.append(action)
         self.ep_next_state.append(next_state)
@@ -142,26 +143,31 @@ class EpisodicReplayBuffer(object):
             self.ep_next_state.clear()
             self.ep_reward.clear()
 
-            if self.prioritized:
-                self._recalc_priorities()
+            if self.prioritized and step >= self.start_timesteps:
+                self._recalc_priorities(policy.critic_target)
 
-    def _recalc_priorities(self):
+    def _recalc_priorities(self, critic):
         batch = 256
         for i in range(0, self.size, batch):
             i_ = min(i+batch, self.max_size)
             state = torch.from_numpy(self.state[i:i_]).float()
             action = torch.from_numpy(self.action[i:i_]).float()
-            self.p[i:i_] = self.mem.retrieve_cuda(state, action, k=1).flatten()
-
+            q_mem = self.mem.retrieve_cuda(state, action, k=1)
+            q = critic(state.to(self.device), action.to(self.device)).detach().cpu().numpy()
+            self.p[i:i_] = (q - q_mem).flatten()
         self.p[:self.size] = np.abs(self.p[:self.size])
 
         self.p[:self.size] **= self.pr_alpha
         d_s = np.sum(self.p[:self.size]) 
         self.p[:self.size] /= d_s
 
-    def sample(self, batch_size):
-        ind = np.random.choice(self.size, batch_size, p=self.p[:self.size])
+    def sample(self, batch_size, step):
+        if step < self.start_timesteps:
+            p = None
+        else:
+            p = self.p[:self.size]
 
+        ind = np.random.choice(self.size, batch_size, p=p)
         return (
                 torch.FloatTensor(self.state[ind]).to(self.device),
                 torch.FloatTensor(self.action[ind]).to(self.device),
