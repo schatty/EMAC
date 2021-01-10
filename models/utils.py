@@ -55,7 +55,8 @@ class ReplayBuffer(object):
 
 class EpisodicReplayBuffer(object):
     def __init__(self, state_dim, action_dim, mem,
-                 max_size=int(1e6), device="cuda", prioritized=False, pr_alpha=0.0, start_timesteps=0, **kwargs):
+                 max_size=int(1e6), device="cuda", prioritized=False, pr_alpha=0.0, 
+                 pr_v="v0",start_timesteps=0, **kwargs):
         self.max_size = max_size
         self.ptr = 0
         self.size = 0
@@ -70,6 +71,8 @@ class EpisodicReplayBuffer(object):
         self.q = np.zeros((max_size, 1))
         self.p = np.ones(max_size)
         self.pr_alpha = pr_alpha
+        self.pr_v = pr_v 
+        assert self.pr_v in ["v0", "v1"], "Incorrect version of prioritization"
 
         self.ep_state = []
         self.ep_action = []
@@ -144,9 +147,14 @@ class EpisodicReplayBuffer(object):
             self.ep_reward.clear()
 
             if self.prioritized and step >= self.start_timesteps:
-                self._recalc_priorities(policy.critic_target)
+                if self.pr_v == "v0":
+                    self._recalc_priorities_v0()
+                elif self.pr_v == "v1":
+                    self._recalc_priorities_v1()
+                else:
+                    raise ValueError("Inocrrect version of prioritizatino")
 
-    def _recalc_priorities(self, critic):
+    def _recalc_priorities_v2(self, critic):
         batch = 256
         for i in range(0, self.size, batch):
             i_ = min(i+batch, self.max_size)
@@ -161,8 +169,37 @@ class EpisodicReplayBuffer(object):
         d_s = np.sum(self.p[:self.size]) 
         self.p[:self.size] /= d_s
 
+    def _recalc_priorities_v1(self):
+        batch = 256
+        for i in range(0, self.size, batch):
+            i_ = min(i+batch, self.max_size)
+            state = torch.from_numpy(self.state[i:i_]).float()
+            action = torch.from_numpy(self.action[i:i_]).float()
+            q_mem = self.mem.retrieve_cuda(state, action, k=1)
+            self.p[i:i_] = q_mem.flatten()
+        self.p[:self.size] = np.abs(self.p[:self.size])
+
+        self.p[:self.size] **= self.pr_alpha
+        d_s = np.sum(self.p[:self.size]) 
+        self.p[:self.size] /= d_s
+
+    def _recalc_priorities_v0(self):
+         batch = 256
+         for i in range(0, self.size, batch):
+             i_ = min(i+batch, self.max_size)
+             state = torch.from_numpy(self.state[i:i_]).float()
+             action = torch.from_numpy(self.action[i:i_]).float()
+             self.p[i:i_] = self.mem.retrieve_cuda(state, action, k=1).flatten()
+
+         self.p[:self.size] -= self.reward[:self.size].flatten() + 1e-7
+         self.p[:self.size] = np.abs(self.p[:self.size])
+
+         self.p[:self.size] **= self.pr_alpha
+         d_s = np.sum(self.p[:self.size])
+         self.p[:self.size] /= d_s
+
     def sample(self, batch_size, step):
-        if step < self.start_timesteps:
+        if step < self.start_timesteps or (not self.prioritized):
             p = None
         else:
             p = self.p[:self.size]

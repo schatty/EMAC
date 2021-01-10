@@ -128,12 +128,13 @@ class Trainer:
         mem = MemBuffer(state_dim, action_dim,
                         capacity=self.c["mem_capacity"],
                         k=self.c["k"],
-                        mem_dim=4, 
+                        mem_dim=self.c["mem_dim"],
                         cosine=self.c["cosine"],
                         device=kwargs["device"])
         replay_buffer = EpisodicReplayBuffer(state_dim, action_dim, mem,
                                              device=device,
                                              prioritized=self.c["prioritized"],
+                                             pr_v=self.c["pr_v"],
                                              pr_alpha=self.c["pr_alpha"],
                                              start_timesteps=self.c["start_timesteps"],
                                              expl_noise=self.c["expl_noise"])
