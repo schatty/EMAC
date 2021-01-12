@@ -198,8 +198,8 @@ class EpisodicReplayBuffer(object):
          d_s = np.sum(self.p[:self.size])
          self.p[:self.size] /= d_s
 
-    def sample(self, batch_size, step):
-        if step < self.start_timesteps or (not self.prioritized):
+    def sample(self, batch_size, step=None):
+        if step is None or (step < self.start_timesteps or (not self.prioritized)):
             p = None
         else:
             p = self.p[:self.size]
