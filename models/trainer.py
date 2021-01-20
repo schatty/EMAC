@@ -20,7 +20,7 @@ from models.CCMEMv026 import CCMEMv026
 from models.CCMEMv03 import CCMEMv03
 from models.CCMEMv031 import CCMEMv031
 
-from .utils import eval_policy, RewardLogger
+from .utils import eval_policy, RewardLogger, estimate_true_q
 from .mem import MemBuffer
 
 
@@ -134,7 +134,6 @@ class Trainer:
         replay_buffer = EpisodicReplayBuffer(state_dim, action_dim, mem,
                                              device=device,
                                              prioritized=self.c["prioritized"],
-                                             pr_v=self.c["pr_v"],
                                              pr_alpha=self.c["pr_alpha"],
                                              start_timesteps=self.c["start_timesteps"],
                                              expl_noise=self.c["expl_noise"])
@@ -213,6 +212,11 @@ class Trainer:
             if t % 250000 == 0 and save_memory:
                 print(f"Saving memory at {t} timesteps...")
                 replay_buffer.mem.save(f"{exp_dir}/buffers/memory")
+
+            if t % 1000 == 0 and self.c["estimate_q"]:
+                print("Calculating true Q")
+                true_q = estimate_true_q(policy, self.c["env"], 0.99, replay_buffer)
+                tb_logger.add_scalar("q_estimate/true_q", true_q, t)
 
         print("Dumping reward...")
         env = self.c["env"]

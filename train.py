@@ -28,7 +28,7 @@ if __name__ == "__main__":
         parser.add_argument("--device", default="cuda")
         parser.add_argument("--save_model_every", type=int, default=1000000)      # Save model every timesteps
         parser.add_argument("--exp_name", default="test")
-        parser.add_argument("--results_dir", default="/home/igor/results_jan_10_pack2") # Directory for storing all experimental data
+        parser.add_argument("--results_dir", default="/home/igor/results_jan_18_hopper") # Directory for storing all experimental data
         parser.add_argument("--ep_len", default=1000, type=int) # Length of the episdoe
         parser.add_argument("--alpha", default=0.1, type=float)
         parser.add_argument("--mem_capacity", default=100000, type=int) # Number of transitions that memory holds
@@ -37,9 +37,9 @@ if __name__ == "__main__":
         parser.add_argument("--substeps", default=1, type=int) # Number of train ops per transition from env
         parser.add_argument("--cosine", action="store_true") # Using cosine similarity
         parser.add_argument("--prioritized", action="store_true")
-        parser.add_argument("--pr_v", type=str, default="v0")
         parser.add_argument("--pr_alpha", default=0.0, type=float)
         parser.add_argument("--mem_dim", default=4, type=int)
+        parser.add_argument("--estimate_q", action="store_true")
         args = parser.parse_args()
 
         print("---------------------------------------")
