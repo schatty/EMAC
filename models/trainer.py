@@ -10,7 +10,7 @@ from models.TD3S import TD3S
 from models.DDPG import DDPG
 from models.CCMEMv0 import CCMEMv00
 from models.CCMEMv01 import CCMEMv01
-from models.CCMEMv02 import CCMEMv02
+from models.CCMEMv02 import CCMEMv02 as EMAC
 from models.CCMEMv021 import CCMEMv021
 from models.CCMEMv022 import CCMEMv022
 from models.CCMEMv023 import CCMEMv023
@@ -89,9 +89,9 @@ class Trainer:
         elif policy == "CCMEMv01":
             kwargs["alpha"] = self.c["alpha"]
             policy = CCMEMv01(**kwargs)
-        elif policy == "CCMEMv02":
+        elif policy == "EMAC":
             kwargs["alpha"] = self.c["alpha"]
-            policy = CCMEMv02(**kwargs)
+            policy = EMAC(**kwargs)
         elif policy == "CCMEMv021":
             kwargs["alpha"] = self.c["alpha"]
             kwargs["weak_memory"] = self.c["weak_memory"]
