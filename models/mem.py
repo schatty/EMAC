@@ -2,6 +2,8 @@ import time
 import numpy as np
 import torch as t
 
+MEM_DTYPE = t.float16
+
 
 class MemBuffer:
 
@@ -13,21 +15,21 @@ class MemBuffer:
         self.size = 0
         self.k = k
 
-        self.sa_cuda = t.zeros(capacity, mem_dim).float().to(device)
+        self.sa_cuda = t.zeros(capacity, mem_dim, dtype=MEM_DTYPE).to(device)
         self.q = np.zeros((capacity, 1))
-        self._prev_cuda_ptr = 0
         self.cosine = cosine
         self.device = device
 
-        self._mem_mapper = np.random.randn(state_dim + action_dim, mem_dim)
+        self.mapping_cpu = np.random.randn(state_dim + action_dim, mem_dim)
+        self.mapping = t.from_numpy(self.mapping_cpu).to(self.device, dtype=MEM_DTYPE)
 
         self.cos = t.nn.CosineSimilarity(dim=2)
 
     def store(self, state, action, q):
         sa = np.concatenate([state, action], axis=0).reshape(1, -1)
-        sa = np.dot(sa, self._mem_mapper)
+        sa = np.dot(sa, self.mapping_cpu)
 
-        self.sa_cuda[self.ptr] = t.from_numpy(sa).float()
+        self.sa_cuda[self.ptr] = t.from_numpy(sa)
         self.q[self.ptr] = q
 
         self.ptr = (self.ptr + 1) % self.max_size
@@ -50,9 +52,8 @@ class MemBuffer:
         if k is None:
             k = self.k
 
-        sa = t.cat([states, actions], dim=1).to(self.device)
-        mapping = t.from_numpy(self._mem_mapper).float().to(self.device)
-        sa = t.mm(sa, mapping)
+        sa = t.cat([states, actions], dim=1).to(self.device, dtype=MEM_DTYPE)
+        sa = t.mm(sa, self.mapping)
 
         # TODO: Bug here, I take only first self.size elements
         if self.cosine:

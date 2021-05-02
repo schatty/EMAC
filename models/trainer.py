@@ -126,7 +126,7 @@ class Trainer:
             policy.load(f"{exp_dir}/models/{load_model}")
 
         mem = MemBuffer(state_dim, action_dim,
-                        capacity=self.c["mem_capacity"],
+                        capacity=self.c["max_timesteps"],
                         k=self.c["k"],
                         mem_dim=self.c["mem_dim"],
                         cosine=self.c["cosine"],

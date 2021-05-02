@@ -8,7 +8,7 @@ import torch
 
 
 class ReplayBuffer(object):
-    def __init__(self, state_dim, action_dim, max_size=int(1e6),
+    def __init__(self, state_dim, action_dim, max_size=int(200_000),
             device="cuda", **kwargs):
         self.max_size = max_size
         self.ptr = 0
@@ -82,7 +82,6 @@ class EpisodicReplayBuffer(object):
         self.start_timesteps = start_timesteps
 
         self.device = device
-        print("Self prioritized: ", self.prioritized)
 
     def _add_replay_buffer(self, state, action, next_state, reward, done):
         self.state[self.ptr] = state
