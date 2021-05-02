@@ -8,17 +8,7 @@ from models.utils import EpisodicReplayBuffer
 from models.TD3 import TD3
 from models.TD3S import TD3S
 from models.DDPG import DDPG
-from models.CCMEMv0 import CCMEMv00
-from models.CCMEMv01 import CCMEMv01
-from models.CCMEMv02 import CCMEMv02 as EMAC
-from models.CCMEMv021 import CCMEMv021
-from models.CCMEMv022 import CCMEMv022
-from models.CCMEMv023 import CCMEMv023
-from models.CCMEMv024 import CCMEMv024
-from models.CCMEMv025 import CCMEMv025
-from models.CCMEMv026 import CCMEMv026
-from models.CCMEMv03 import CCMEMv03
-from models.CCMEMv031 import CCMEMv031
+from models.EMAC import EMAC
 
 from .utils import eval_policy, RewardLogger, estimate_true_q
 from .mem import MemBuffer
@@ -84,42 +74,9 @@ class Trainer:
             policy = TD3S(**kwargs)
         elif policy == "DDPG":
             policy = DDPG(**kwargs)
-        elif policy == "CCMEMv00":
-            policy = CCMEMv00(**kwargs)
-        elif policy == "CCMEMv01":
-            kwargs["alpha"] = self.c["alpha"]
-            policy = CCMEMv01(**kwargs)
         elif policy == "EMAC":
             kwargs["alpha"] = self.c["alpha"]
             policy = EMAC(**kwargs)
-        elif policy == "CCMEMv021":
-            kwargs["alpha"] = self.c["alpha"]
-            kwargs["weak_memory"] = self.c["weak_memory"]
-            policy = CCMEMv021(**kwargs)
-        elif policy == "CCMEMv022":
-            kwargs["alpha"] = self.c["alpha"]
-            policy = CCMEMv022(**kwargs)
-        elif policy == "CCMEMv023":
-            kwargs["alpha"] = self.c["alpha"]
-            policy = CCMEMv023(**kwargs)
-        elif policy == "CCMEMv024":
-            kwargs["alpha"] = self.c["alpha"]
-            policy = CCMEMv024(**kwargs)
-        elif policy == "CCMEMv025":
-            kwargs["alpha"] = self.c["alpha"]
-            kwargs["policy_noise"] = self.c["policy_noise"] * max_action
-            kwargs["noise_clip"] = self.c["noise_clip"] * max_action
-            policy = CCMEMv025(**kwargs)
-        elif policy == "CCMEMv026":
-            kwargs["alpha"] = self.c["alpha"]
-            policy = CCMEMv026(**kwargs)
-        elif policy == "CCMEMv03":
-            kwargs["alpha"] = self.c["alpha"]
-            policy = CCMEMv03(**kwargs)
-        elif policy == "CCMEMv031":
-            kwargs["weak_memory"] = self.c["weak_memory"]
-            kwargs["alpha"] = self.c["alpha"]
-            policy = CCMEMv031(**kwargs)
 
         load_model = self.c["load_model"]
         if load_model != "":
@@ -129,7 +86,6 @@ class Trainer:
                         capacity=self.c["max_timesteps"],
                         k=self.c["k"],
                         mem_dim=self.c["mem_dim"],
-                        cosine=self.c["cosine"],
                         device=kwargs["device"])
         replay_buffer = EpisodicReplayBuffer(state_dim, action_dim, mem,
                                              device=device,

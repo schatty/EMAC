@@ -1,4 +1,3 @@
-import time
 import copy
 import numpy as np
 import torch
@@ -8,7 +7,9 @@ from torch.utils.tensorboard import SummaryWriter
 from .nn import Actor, Critic
 
 
-class CCMEMv023(object):
+class EMAC:
+    """Episodic Memory Actor-Critic. """
+
     def __init__(self, state_dim, action_dim, max_action, discount=0.99, alpha=0.0,
             tau=0.005, device="cuda", log_dir="tb"):
         self.actor = Actor(state_dim, action_dim, max_action).to(device)
@@ -34,18 +35,14 @@ class CCMEMv023(object):
 
     def train(self, replay_buffer, batch_size=100):
         # Sample replay buffer 
-        state, action, next_state, reward, not_done = replay_buffer.sample(batch_size)
+        state, action, next_state, reward, not_done = replay_buffer.sample(batch_size, self.step)
 
         # Compute the target Q value
         target_Q = self.critic_target(next_state, self.actor_target(next_state))
         target_Q = reward + (not_done * self.discount * target_Q).detach()
 
-        time1 = time.time()
-        qmem = replay_buffer.mem.retrieve_cuda(next_state, self.actor_target(next_state).detach(), self.step)
-        mem_q = reward + (not_done * self.discount * torch.from_numpy(qmem).float().to(self.device))
-
-        #mem_contrib = torch.sum(min_inds).item() / batch_size
-        mem_time = time.time() - time1
+        mem_q = replay_buffer.mem.retrieve_cuda(state, action)
+        mem_q = torch.from_numpy(mem_q).float().to(self.device)
 
         # Get current Q estimate
         current_Q = self.critic(state, action)
@@ -89,8 +86,6 @@ class CCMEMv023(object):
             self.tb_logger.add_scalar("algo/critic_loss", q_total_loss, self.step)
             pi_loss = actor_loss.detach().cpu().item()
             self.tb_logger.add_scalar("algo/pi_loss", pi_loss, self.step)
-            self.tb_logger.add_scalar("algo/mem_retrieve_time", mem_time, self.step)
-            # self.tb_logger.add_scalar("algo/mem_contribution", mem_contrib, self.step)
         self.step += 1
 
     def save(self, filename):

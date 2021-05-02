@@ -8,6 +8,8 @@ import torch
 
 
 class ReplayBuffer(object):
+    """Buffer that stores separate transitions per column. """
+
     def __init__(self, state_dim, action_dim, max_size=int(200_000),
             device="cuda", **kwargs):
         self.max_size = max_size
@@ -54,6 +56,8 @@ class ReplayBuffer(object):
 
 
 class EpisodicReplayBuffer(object):
+    """Buffer that saves transitions for incoming epsiodes. """
+
     def __init__(self, state_dim, action_dim, mem,
                  max_size=int(1e6), device="cuda", prioritized=False, pr_alpha=0.0, 
                  start_timesteps=0, **kwargs):
@@ -206,6 +210,9 @@ def eval_policy(policy, env_name, seed, eval_episodes=10):
 
 
 def estimate_true_q(policy, env_name, discount, buffer, eval_episodes=1000):
+    """Estimates true Q-value via launching given policy from sampled state until
+    the end of an episode. """
+
     t1 = time.time()
     eval_env = gym.make(env_name)
 
