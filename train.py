@@ -33,10 +33,10 @@ if __name__ == "__main__":
         parser.add_argument("--k", default=2, type=int) # K-nearest for the memory retrieval
         parser.add_argument("--substeps", default=1, type=int) # Number of train ops per transition from env
         parser.add_argument("--prioritized", action="store_true")
-        parser.add_argument("--pr_alpha", default=0.0, type=float)
+        parser.add_argument("--beta", default=0.0, type=float)
         parser.add_argument("--mem_dim", default=4, type=int)
         parser.add_argument("--estimate_q", action="store_true")
-        parser.add_argument("--results_dir", default="/home/igor/results_jan_18_hopper") # Directory for storing all experimental data
+        parser.add_argument("--results_dir", default="results") # Directory for storing all experimental data
         args = parser.parse_args()
 
         print("---------------------------------------")

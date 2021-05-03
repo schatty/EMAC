@@ -59,7 +59,7 @@ class EpisodicReplayBuffer(object):
     """Buffer that saves transitions for incoming epsiodes. """
 
     def __init__(self, state_dim, action_dim, mem,
-                 max_size=int(1e6), device="cuda", prioritized=False, pr_alpha=0.0, 
+                 max_size=int(1e6), device="cuda", prioritized=False, beta=0.0, 
                  start_timesteps=0, **kwargs):
         self.max_size = max_size
         self.ptr = 0
@@ -74,7 +74,7 @@ class EpisodicReplayBuffer(object):
         self.not_done = np.zeros((max_size, 1))
         self.q = np.zeros((max_size, 1))
         self.p = np.ones(max_size)
-        self.pr_alpha = pr_alpha
+        self.beta = beta
 
         self.ep_state = []
         self.ep_action = []
@@ -156,7 +156,7 @@ class EpisodicReplayBuffer(object):
         if min_mc < 0:
             self.p[:self.size] += np.abs(min_mc)
         
-        self.p[:self.size] **= self.pr_alpha
+        self.p[:self.size] **= self.beta
         d_s = np.sum(self.p[:self.size]) 
         self.p[:self.size] /= d_s
 

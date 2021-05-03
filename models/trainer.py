@@ -1,12 +1,10 @@
 import gym
 import numpy as np
-
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
 from models.utils import EpisodicReplayBuffer
 from models.TD3 import TD3
-from models.TD3S import TD3S
 from models.DDPG import DDPG
 from models.EMAC import EMAC
 
@@ -90,7 +88,7 @@ class Trainer:
         replay_buffer = EpisodicReplayBuffer(state_dim, action_dim, mem,
                                              device=device,
                                              prioritized=self.c["prioritized"],
-                                             pr_alpha=self.c["pr_alpha"],
+                                             beta=self.c["beta"],
                                              start_timesteps=self.c["start_timesteps"],
                                              expl_noise=self.c["expl_noise"])
 
