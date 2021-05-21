@@ -64,12 +64,6 @@ class Trainer:
             kwargs["noise_clip"] = self.c["noise_clip"] * max_action
             kwargs["policy_freq"] = self.c["policy_freq"]
             policy = TD3(**kwargs)
-        if policy == "TD3S":
-            # Target policy smoothing is scaled wrt the action scale
-            kwargs["policy_noise"] = self.c["policy_noise"] * max_action
-            kwargs["noise_clip"] = self.c["noise_clip"] * max_action
-            kwargs["policy_freq"] = self.c["policy_freq"]
-            policy = TD3S(**kwargs)
         elif policy == "DDPG":
             policy = DDPG(**kwargs)
         elif policy == "EMAC":
