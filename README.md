@@ -10,8 +10,15 @@ TD3 and DDPG architecture parameters were based on official TD3 implementation: 
 
 For training run:
 
-`python train.py --policy EMAC --env Walker2d-v3 --k 2 --alpha 0.1 --max_timesteps 200000 --device cuda:0`
+```
+python train.py --policy EMAC --env Walker2d-v3 --k 2 --alpha 0.1 --beta 0.1 --max_timesteps 200000 --device cuda:0
+```
 
 ## Results
 
-Paper training curves can be found in `curves` directory as saved TensorBoard logs in json format. 
+Paper training curves can be found in `curves` directory as saved TensorBoard logs in json format. For producing results below run
+```
+bash scripts/Walker2d-v3/train_EMAC.sh
+```
+
+![results](https://user-images.githubusercontent.com/23639048/119147664-78b3ca80-ba54-11eb-8419-039c6114e776.png)
